@@ -2,9 +2,11 @@ package main
 
 import (
 	"github.com/hashicorp/terraform/plugin"
-	"gothub.com/limberger"
+	"gothub.com/limberger/terraform-provider-netbox/plugin/providers/netbox"
 )
 
 func main() {
-	plugin.Serve(new(MyPlugin))
+	plugin.Serve(&plugin.ServeOpts{
+		ProviderFunc: netbox.Provider,
+	})
 }
