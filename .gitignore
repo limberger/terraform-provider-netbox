@@ -17,3 +17,4 @@ crash.log
 *.tfstate
 *.tfstate.backup
 pkg
+.tmp/
