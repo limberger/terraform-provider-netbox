@@ -1,6 +1,8 @@
 package netbox
 
 import (
+	"log"
+
 	"github.com/hashicorp/terraform/helper/schema"
 	"github.com/hashicorp/terraform/terraform"
 )
@@ -24,20 +26,14 @@ func Provider() terraform.ResourceProvider {
 		},
 
 		ResourcesMap: map[string]*schema.Resource{
-			"netbox_address": resourcePHPIPAMAddress(),
-			"netbox_section": resourcePHPIPAMSection(),
-			"netbox_subnet":  resourcePHPIPAMSubnet(),
-			"netbox_vlan":    resourcePHPIPAMVLAN(),
+//			"netbox_address": resourceNetboxAddress(),
+		    "netbox_prefixes": resourceNetboxPrefixes(),
 		},
 
 		DataSourcesMap: map[string]*schema.Resource{
-			"netbox_address":            dataSourcePHPIPAMAddress(),
-			"netbox_addresses":          dataSourcePHPIPAMAddresses(),
-			"netbox_first_free_address": dataSourcePHPIPAMFirstFreeAddress(),
-			"netbox_section":            dataSourcePHPIPAMSection(),
-			"netbox_subnet":             dataSourcePHPIPAMSubnet(),
-			"netbox_subnets":            dataSourcePHPIPAMSubnets(),
-			"netbox_vlan":               dataSourcePHPIPAMVLAN(),
+//			"netbox_address":            dataSourceNetboxAddress(),
+			"netbox_prefixes":           dataSourceNetboxPrefixes(),
+			"netbox_first_free_address": dataSourceNetboxFirstFreeAddress(),
 		},
 
 		ConfigureFunc: providerConfigure,
@@ -54,6 +50,8 @@ func init() {
 }
 
 func providerConfigure(d *schema.ResourceData) (interface{}, error) {
+	log.Printf("[DEBUG] provider.providerConfigure JP provider.providerConfigure APP_ID %s",d.Get("app_id"))
+	log.Printf("[DEBUG] provider.providerConfigure JP provider.providerConfigure ENDPOINT %s",d.Get("endpoint"))
 	config := Config{
 		AppID:    d.Get("app_id").(string),
 		Endpoint: d.Get("endpoint").(string),

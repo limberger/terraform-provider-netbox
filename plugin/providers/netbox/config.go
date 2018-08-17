@@ -1,8 +1,9 @@
-package netbox
+package 	netbox
 
 import (
 	"log"
-	"github.com/digitalocean/go-netbox/netbox"
+	api "github.com/digitalocean/go-netbox/netbox"
+	"github.com/digitalocean/go-netbox/netbox/client"
 )
 
 // Config provides the configuration for the NETBOX providerr.
@@ -18,33 +19,44 @@ type Config struct {
 
 }
 
+type ProviderNetboxClient struct {
+	client *client.NetBox
+}
 // ProviderNetboxClient is a structure that contains the client connections
 // necessary to interface with the Go-Netbox API 
-type ProviderNetboxClient struct {
-		client *addresses.Controller
-}
+//type ProviderNetboxClient struct {
+//		client *Client
+//}
+
 
 func (c *Config) Client() (interface{}, error) {
-	cfg = netbox.Config{
+	log.Printf("[DEBUG] config.go Client() AppID: %s",c.AppID)
+	log.Printf("[DEBUG] config.go Client() Endpoint: %s",c.Endpoint)
+	cfg := Config{
 		AppID: c.AppID,
-		Endpoint: c.Endpoint 
+		Endpoint: c.Endpoint, 
 	}
 	log.Printf("[DEBUG] Initializing Netbox controllers")
-	sess := session.NewSession(cfg)
+	// sess := session.NewSession(cfg)
 	// Create the Client
-	client := netbox.NewNetboxWithAPIKey(cfg:Endpoint, cfg:AppID)
+	cli := api.NewNetboxWithAPIKey(cfg.Endpoint, cfg.AppID)
 
 	// Validate that our connection is okay
-	if err := c.ValidateConnections(client); err != nil {
+	if err := c.ValidateConnection(cli); err != nil {
+		log.Printf("[DEBUG] config.go Client() Erro")
 		return nil, err
 	}
-
-	return &client, nil
+    cs := ProviderNetboxClient{
+    	client: cli,
+    }
+	return &cs, nil
 }
 
 // ValidateConnection ensures that we can connect to Netbox early, so that we
 // do not fail in the middle of a TF run if it can be prevented.
-func (c *Config) ValidateConnection(sc *netbox.NewNetboxWithAPIKey) error {
+func (c *Config) ValidateConnection(sc *client.NetBox) error {
+	log.Printf("[DEBUG] config.go ValidateConnection() validando ")
 	rs, err := sc.Dcim.DcimRacksList(nil, nil)
+	log.Println(rs)
 	return err
 }

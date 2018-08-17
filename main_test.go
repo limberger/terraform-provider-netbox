@@ -2,7 +2,6 @@ package main
 
 import (
 	"testing"
-
 	"github.com/hashicorp/terraform/plugin"
 )
 
