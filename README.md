@@ -42,31 +42,16 @@ along to the configuration for a VM, say, for example, a
 
 ```
 provider "netbox" {
-  app_id   = "2fe35cabcfe231ebc8734a798f1cac63439a7a2b"
-  endpoint = "https://netbox.example.com/api"
+  app_id = "2fe35cabcfe231ebc8734a798f1cac63439a7a2b"
+  endpoint = "172.17.133.10"
 }
 
-data "netbox_subnet" "subnet" {
-  subnet_address = "10.10.2.0"
-  subnet_mask    = 24
+data "netbox_prefixes" "prefixes" {
+  prefixes_id = 1
 }
 
 data "netbox_first_free_address" "next_address" {
-  subnet_id = "${data.phpipam_subnet.subnet.subnet_id}"
-}
-
-resource "phpipam_address" {
-  subnet_id   = "${data.phpipam_subnet.subnet.subnet_id}"
-  ip_address  = "${data.phpipam_first_free_address.next_address.ip_address}"
-  hostname    = "tf-test-host.example.internal"
-  description = "Managed by Terraform"
-
-  lifecycle {
-    ignore_changes = [
-      "subnet_id",
-      "ip_address",
-    ]
-  }
+  prefixes_id = "${data.netbox_prefixes.prefixes.prefixes_id}"
 }
 ```
 
@@ -77,32 +62,20 @@ The options for the plugin are as follows:
  * `app_id` - The API application ID, configured in the PHPIPAM API panel. This
    application ID should have read/write access if you are planning to use the
    resources, but read-only access should be sufficient if you are only using
-   the data sources. Can also be supplied by the `PHPIPAM_APP_ID` environment
+   the data sources. Can also be supplied by the `NETBOX_APP_ID` environment
    variable.
  * `endpoint` - The full URL to the PHPIPAM API endpoint, such as
    `https://phpipam.example.com/api`. Can also be supplied by the
-   `PHPIPAM_ENDPOINT_ADDR` environment variable.
- * `password` - The password to access the PHPIPAM API with. Can also be
-   supplied via `PHPIPAM_PASSWORD` to prevent plain text password storage in
-   config.
- * `username` - The user name to access the PHPIPAM API with. Can also be
-   supplied via the `PHPIPAM_USER_NAME` variable.
+   `NETBOX_ENDPOINT_ADDR` environment variable.
+ * `timeout` - Timeout to API calls.
 
 ### Data Sources
 
 The following data sources are supplied by this plugin:
 
-#### The `phpipam_address` Data Source
+#### The `netbox_prefixes` Data Source
 
-The `phpipam_address` data source allows one to get information about a specific
-IP address within PHPIPAM. Use this address to get general information about a
-specific IP address such as its host name, description and more.
-
-Lookups for IP addresses can only happen at this time via its entry in the
-database, or the IP address itself. Future versions of this resource, when such
-features become generally available in the PHPIPAM API, will allow lookup based
-on host name, allowing for better ability for this resource to discover IP
-addresses that have been pre-assigned for a specific resource.
+The `netbox_prefixes` cadastred on netbox
 
 **Example:**
 
@@ -119,13 +92,12 @@ output "address_description" {
 **Example With `description`:**
 
 ```
-data "phpipam_address" "address" {
-  subnet_id         = 3
-  description_match = "Customer 1"
+data "netbox_prefixes" "prefixes" {
+  prefixes_id = 1
 }
 
-output "address_description" {
-  value = "${data.phpipam_address.address.description}"
+output "prefix_description" {
+  value = "${data.netbox_prefixes.prefixes.description}"
 }
 ```
 
