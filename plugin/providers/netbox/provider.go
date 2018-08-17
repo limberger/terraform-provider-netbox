@@ -20,9 +20,11 @@ func init() {
 
 // Provider returns a terraform.ResourceProvider.
 func Provider() terraform.ResourceProvider {
+	log.Println("[DEBUG] JP provider.go Provider()")
 	return &schema.Provider{
 		Schema: providerSchema(),
-		ResourcesMap: providerResources(), 
+		ResourcesMap: providerResources(),
+		DataSourcesMap: providerDataSourcesMap(), 
 		ConfigureFunc: providerConfigure,
 	}
 }
@@ -32,6 +34,7 @@ func Provider() terraform.ResourceProvider {
 // support in our provider (api_key, endpoint, timeout & max_retries).
 // More info in https://github.com/hashicorp/terraform/blob/v0.6.6/helper/schema/schema.go#L29-L142
 func providerSchema() map[string]*schema.Schema {
+	log.Println("[DEBUG] jp provider.go providerSchema()")
 	return map[string]*schema.Schema{
 		"app_id": &schema.Schema{
 			Type:        schema.TypeString,
@@ -47,12 +50,11 @@ func providerSchema() map[string]*schema.Schema {
 		},
 		"timeout": &schema.Schema{
 			Type: schema.TypeInt,
-			Required: false,
-			Description: description["Max. wait time should wait for a successful connection to the API"],
-		}
-	},
+			Optional:    true,
+			Description: descriptions["Max. wait time should wait for a successful connection to the API"],
+		},
+	}
 }
-
 
 // List of supported resources and their configuration fields.
 // Here we define da linked list of all the resources that we want to
@@ -61,24 +63,32 @@ func providerSchema() map[string]*schema.Schema {
 // then this would be the place to declare them.
 // More info here https://github.com/hashicorp/terraform/blob/v0.6.6/helper/schema/resource.go#L17-L81
 func providerResources() map[string] *schema.Resource {
+	log.Println("[DEBUG] jp provider.go providerResource()")
 	return 	map[string]*schema.Resource{
 		    "netbox_prefixes": resourceNetboxPrefixes(),
-		},
-		DataSourcesMap: map[string]*schema.Resource{
-			"netbox_prefixes":           dataSourceNetboxPrefixes(),
-			"netbox_first_free_address": dataSourceNetboxFirstFreeAddress(),
-		},
-
-
+	}
 }
 
+// List of supported resources and their configuration fields.
+// Here we define da linked list of all the resources that we want to
+// support in our provider. As an example, if you were to write an AWS provider
+// which supported resources like ec2 instances, elastic balancers and things of that sort
+// then this would be the place to declare them.
+// More info here https://github.com/hashicorp/terraform/blob/v0.6.6/helper/schema/resource.go#L17-L81
 
-
+func providerDataSourcesMap() map[string] *schema.Resource {
+	log.Println("[DEBUG] jp provider.go providerDataSourcesMap()")
+	return  map[string]*schema.Resource{
+			"netbox_prefixes":           dataSourceNetboxPrefixes(),
+			"netbox_first_free_address": dataSourceNetboxFirstFreeAddress(),
+	}
+}
 
 // This is the function used to fetch the configuration params given
 // to our provider which we will use to initialise a dummy client that
 // interacts with the API.
 func providerConfigure(d *schema.ResourceData) (interface{}, error) {
+	log.Println("[DEBUG] jp provider.go providerConfigure()")
 	log.Printf("[DEBUG] provider.providerConfigure JP provider.providerConfigure APP_ID %s",d.Get("app_id"))
 	log.Printf("[DEBUG] provider.providerConfigure JP provider.providerConfigure ENDPOINT %s",d.Get("endpoint"))
 	config := Config{

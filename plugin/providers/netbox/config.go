@@ -17,6 +17,9 @@ type Config struct {
 	// supplied via the NETBOX_ENDPOINT_ADDR environment variable.
 	Endpoint string
 
+	// Optional timeout to API calls
+	Timeout int
+
 }
 
 type ProviderNetboxClient struct {
@@ -35,6 +38,7 @@ func (c *Config) Client() (interface{}, error) {
 	cfg := Config{
 		AppID: c.AppID,
 		Endpoint: c.Endpoint, 
+		Timeout: c.Timeout,
 	}
 	log.Printf("[DEBUG] Initializing Netbox controllers")
 	// sess := session.NewSession(cfg)

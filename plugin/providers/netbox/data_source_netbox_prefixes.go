@@ -12,6 +12,7 @@ import (
 
 
 func dataSourceNetboxPrefixes() *schema.Resource {
+	log.Println("[DEBUG] jp data_source_netbox_prefixes.go dataSourceNetboxPrefixes()")
 	return &schema.Resource{
 		Read:   dataSourceNetboxPrefixesRead,
 		Schema: dataSourcePrefixesSchema(),
@@ -21,7 +22,7 @@ func dataSourceNetboxPrefixes() *schema.Resource {
 func dataSourceNetboxPrefixesRead(d *schema.ResourceData, meta interface{}) error {
 	//out := ipam.NewIPAMPrefixesListParams()
 
-	log.Printf("[DEBUG] JP data_source_netbox_prefixes.go : dataSourceNetboxPrefixesRead %v\n",d)
+	log.Printf("[DEBUG] jp data_source_netbox_prefixes.go : dataSourceNetboxPrefixesRead %v\n",d)
 	switch {
 		case d.Get("prefixes_id").(int) != 0:
 			log.Println("É um prefixo ...")
@@ -42,18 +43,36 @@ func dataSourceNetboxPrefixesRead(d *schema.ResourceData, meta interface{}) erro
 				log.Printf("Ok na chamada do IPAMPrefixesList\n")
 				log.Printf("Out: %v\n", out)
 				log.Printf("Created: %v\n", &out.Payload.Created)
-				d.Set("Created",out.Payload.Created)
+				d.Set("created",out.Payload.Created)
 				log.Printf("Description: %v\n", out.Payload.Description)
-				d.Set("Description",out.Payload.Description)
+				d.Set("description",out.Payload.Description)
 				log.Printf("Family: %v\n", out.Payload.Family)
-				d.Set("Family",out.Payload.Family)
+				d.Set("family",out.Payload.Family)
 				log.Printf("ID: %v\n", out.Payload.ID)
-				d.Set("ID",out.Payload.ID)
-				log.Printf("IsPool: %v\n", out.Payload.IsPool)
-				d.Set("IsPool",out.Payload.IsPool)
+				d.Set("is_pool",out.Payload.IsPool)
 				log.Printf("LastUpdated: %v\n", out.Payload.LastUpdated)
-				d.Set("LastUpdated",out.Payload.LastUpdated)
+				d.Set("last_updated",out.Payload.LastUpdated)
 				log.Print("\n")
+
+
+		"prefixes_id": &schema.Schema{
+			Type: schema.TypeInt,
+		},
+		"": &schema.Schema {
+			Type: schema.TypeString,
+		},
+		"": &schema.Schema {
+			Type: schema.TypeString,
+		},
+		"": &schema.Schema {
+			Type: schema.TypeString,
+		},
+		"is_pool": &schema.Schema {
+			Type: schema.TypeBool,
+		},
+		"last_updated": &schema.Schema {
+			Type: schema.TypeString,
+		},
 
 			} else {
 				log.Printf("erro na chamada do IPAMPrefixesList\n")
@@ -110,6 +129,21 @@ func barePrefixesSchema() map[string]*schema.Schema {
 		"prefixes_id": &schema.Schema{
 			Type: schema.TypeInt,
 		},
+		"created": &schema.Schema {
+			Type: schema.TypeString,
+		},
+		"description": &schema.Schema {
+			Type: schema.TypeString,
+		},
+		"family": &schema.Schema {
+			Type: schema.TypeString,
+		},
+		"is_pool": &schema.Schema {
+			Type: schema.TypeBool,
+		},
+		"last_updated": &schema.Schema {
+			Type: schema.TypeString,
+		},
 	}
 }
 
@@ -146,6 +180,7 @@ func barePrefixesSchema() map[string]*schema.Schema {
 // computed as well.
 func dataSourcePrefixesSchema() map[string]*schema.Schema {
 	s := barePrefixesSchema()
+	log.Printf("[DEBUG] ANTES: %v\n",s)
 	for k, v := range s {
 		switch k {
 		case "prefixes_id":
@@ -160,6 +195,7 @@ func dataSourcePrefixesSchema() map[string]*schema.Schema {
 	// Add the custom_field_filter item to the schema. This is a meta-parameter
 	// that allows searching for a custom field value in the data source.
 	s["custom_field_filter"] = customFieldFilterSchema([]string{"prefixes_id"})
+	log.Printf("[DEBUG]DEPOIS: %v\n",s)
 
 	return s
 }
