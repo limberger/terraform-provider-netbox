@@ -24,6 +24,12 @@ func TestProvider_impl(t *testing.T) {
 	var _ terraform.ResourceProvider = Provider()
 }
 
+func TestProvider(t *testing.T) {
+	if err := Provider().(*schema.Provider).InternalValidate(); err != nil {
+		t.Fatalf("err: %s", err)
+	}
+}
+
 func testAccPreCheck(t *testing.T) {
 	switch {
 	case os.Getenv("NETBOX_APP_ID") == "":
