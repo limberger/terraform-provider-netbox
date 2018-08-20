@@ -97,6 +97,7 @@ func dataSourceNetboxPrefixesRead(d *schema.ResourceData, meta interface{}) erro
 	// if err := d.Set("custom_fields", fields); err != nil {
 	// 	return err
 	// }
+	log.Printf("dataSourceNetboxPrefixesRead *FIM*")
 	return nil
 }
 
@@ -113,6 +114,9 @@ func barePrefixesSchema() map[string]*schema.Schema {
 		},
 		"family": &schema.Schema{
 			Type: schema.TypeString,
+		},
+		"vlan": &schema.Schema{
+			Type: schema.TypeInt,
 		},
 		"is_pool": &schema.Schema{
 			Type: schema.TypeBool,
@@ -155,7 +159,6 @@ func resourcePrefixesSchema() map[string]*schema.Schema {
 // computed as well.
 func dataSourcePrefixesSchema() map[string]*schema.Schema {
 	s := barePrefixesSchema()
-	log.Printf("[DEBUG] ANTES: %v\n", s)
 	for k, v := range s {
 		switch k {
 		case "prefixes_id":
@@ -170,7 +173,7 @@ func dataSourcePrefixesSchema() map[string]*schema.Schema {
 	// Add the custom_field_filter item to the schema. This is a meta-parameter
 	// that allows searching for a custom field value in the data source.
 	s["custom_field_filter"] = customFieldFilterSchema([]string{"prefixes_id"})
-	log.Printf("[DEBUG]DEPOIS: %v\n", s)
 
+	log.Printf("data_source_netbox_prefixes.go  dataSourcePrefixesSchema : %v  ", s)
 	return s
 }

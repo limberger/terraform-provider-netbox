@@ -1,6 +1,6 @@
 provider "netbox" {
-	app_id = "2fe35cabcfe231ebc8734a798f1cac63439a7a2b"
-	endpoint = "172.17.133.10"
+	app_id = "0123456789abcdef0123456789abcdef01234567"
+	endpoint = "0.0.0.0:32768"
 }
 
 data "netbox_prefixes" "prefixes" {

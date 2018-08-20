@@ -3,6 +3,7 @@ package netbox
 import (
 	"log"
 	"reflect"
+
 	// "errors"
 
 	"github.com/hashicorp/terraform/helper/schema"
@@ -10,7 +11,7 @@ import (
 	// "github.com/digitalocean/go-netbox/netbox/client"
 )
 
-func  bareFirstFreeAddressSchema() map[string]*schema.Schema {
+func bareFirstFreeAddressSchema() map[string]*schema.Schema {
 	return map[string]*schema.Schema{
 		"prefixes_id": &schema.Schema{
 			Type: schema.TypeInt,
@@ -18,7 +19,6 @@ func  bareFirstFreeAddressSchema() map[string]*schema.Schema {
 		"ip_address": &schema.Schema{
 			Type: schema.TypeString,
 		},
-
 	}
 }
 
@@ -42,9 +42,10 @@ func dataSourceFirstFreeAddressSchema() map[string]*schema.Schema {
 	// that allows searching for a custom field value in the data source.
 	s["custom_field_filter"] = customFieldFilterSchema([]string{"ip_address"})
 
+	log.Printf("*FIM* data_source_netbox_first_free_address dataSourceFirstFreeAddresschema() -> %v", s)
+
 	return s
 }
-
 
 func dataSourceNetboxFirstFreeAddress() *schema.Resource {
 	return &schema.Resource{
@@ -53,12 +54,11 @@ func dataSourceNetboxFirstFreeAddress() *schema.Resource {
 	}
 }
 
-
 func dataSourceNetboxFirstFreeAddressRead(d *schema.ResourceData, meta interface{}) error {
-	log.Printf("[DEBUG] JP : dataSourceNetboxFirstFreeAddressRead %v\n",d)
+	log.Printf("[DEBUG] JP : dataSourceNetboxFirstFreeAddressRead %v\n", d)
 	log.Printf("Tipo do d : %s\n", reflect.TypeOf(d))
 
-	// switch {	
+	// switch {
 	// 	case d.Get("prefixes_id").(int) != 0:
 	// 		log.Println("Tem prefixo ...")
 	// 		log.Printf("data_source_netbox_prefixes.go dataSourceNetboxPrefixesRead - Prefixo: %i\n", d.Get("prefixes_id").(int))
@@ -68,7 +68,6 @@ func dataSourceNetboxFirstFreeAddressRead(d *schema.ResourceData, meta interface
 	// 		log.Printf("Obtive o client\n")
 	// 		//parms = ipam.NewIPAMPrefixesListParams()
 	// 		// out , err := c.IPAM.IPAMPrefixesRead(parm,nil)
-
 
 	// }
 

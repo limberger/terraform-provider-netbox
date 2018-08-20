@@ -14,7 +14,7 @@ func init() {
 	descriptions = map[string]string{
 		"app_id":   "The application ID required for API requests",
 		"endpoint": "The full URL (plus path) to the API endpoint",
-		"timeout": "Max. wait time should wait for a successful connection to the API",
+		"timeout":  "Max. wait time should wait for a successful connection to the API",
 	}
 }
 
@@ -22,10 +22,10 @@ func init() {
 func Provider() terraform.ResourceProvider {
 	log.Println("[DEBUG] JP provider.go Provider()")
 	return &schema.Provider{
-		Schema: providerSchema(),
-		ResourcesMap: providerResources(),
-		DataSourcesMap: providerDataSourcesMap(), 
-		ConfigureFunc: providerConfigure,
+		Schema:         providerSchema(),
+		ResourcesMap:   providerResources(),
+		DataSourcesMap: providerDataSourcesMap(),
+		ConfigureFunc:  providerConfigure,
 	}
 }
 
@@ -49,7 +49,7 @@ func providerSchema() map[string]*schema.Schema {
 			Description: descriptions["endpoint of netbox (without http:// and / )"],
 		},
 		"timeout": &schema.Schema{
-			Type: schema.TypeInt,
+			Type:        schema.TypeInt,
 			Optional:    true,
 			Description: descriptions["Max. wait time should wait for a successful connection to the API"],
 		},
@@ -62,10 +62,10 @@ func providerSchema() map[string]*schema.Schema {
 // which supported resources like ec2 instances, elastic balancers and things of that sort
 // then this would be the place to declare them.
 // More info here https://github.com/hashicorp/terraform/blob/v0.6.6/helper/schema/resource.go#L17-L81
-func providerResources() map[string] *schema.Resource {
+func providerResources() map[string]*schema.Resource {
 	log.Println("[DEBUG] jp provider.go providerResource()")
-	return 	map[string]*schema.Resource{
-		    "netbox_prefixes": resourceNetboxPrefixes(),
+	return map[string]*schema.Resource{
+		"netbox_prefixes": resourceNetboxPrefixes(),
 	}
 }
 
@@ -76,11 +76,12 @@ func providerResources() map[string] *schema.Resource {
 // then this would be the place to declare them.
 // More info here https://github.com/hashicorp/terraform/blob/v0.6.6/helper/schema/resource.go#L17-L81
 
-func providerDataSourcesMap() map[string] *schema.Resource {
+func providerDataSourcesMap() map[string]*schema.Resource {
 	log.Println("[DEBUG] jp provider.go providerDataSourcesMap()")
-	return  map[string]*schema.Resource{
-			"netbox_prefixes":           dataSourceNetboxPrefixes(),
-			"netbox_first_free_address": dataSourceNetboxFirstFreeAddress(),
+	return map[string]*schema.Resource{
+		"netbox_vlan":               dataSourceNetboxVlan(),
+		"netbox_prefixes":           dataSourceNetboxPrefixes(),
+		"netbox_first_free_address": dataSourceNetboxFirstFreeAddress(),
 	}
 }
 
@@ -89,12 +90,12 @@ func providerDataSourcesMap() map[string] *schema.Resource {
 // interacts with the API.
 func providerConfigure(d *schema.ResourceData) (interface{}, error) {
 	log.Println("[DEBUG] jp provider.go providerConfigure()")
-	log.Printf("[DEBUG] provider.providerConfigure JP provider.providerConfigure APP_ID %s",d.Get("app_id"))
-	log.Printf("[DEBUG] provider.providerConfigure JP provider.providerConfigure ENDPOINT %s",d.Get("endpoint"))
+	log.Printf("[DEBUG] provider.providerConfigure JP provider.providerConfigure APP_ID %s", d.Get("app_id"))
+	log.Printf("[DEBUG] provider.providerConfigure JP provider.providerConfigure ENDPOINT %s", d.Get("endpoint"))
 	config := Config{
 		AppID:    d.Get("app_id").(string),
 		Endpoint: d.Get("endpoint").(string),
-		Timeout: d.Get("timeout").(int),
+		Timeout:  d.Get("timeout").(int),
 	}
 	return config.Client()
 }
