@@ -12,7 +12,6 @@ import (
 )
 
 func dataSourceNetboxPrefixes() *schema.Resource {
-	log.Println("[DEBUG] jp data_source_netbox_prefixes.go dataSourceNetboxPrefixes()")
 	return &schema.Resource{
 		Read:   dataSourceNetboxPrefixesRead,
 		Schema: dataSourcePrefixesSchema(),
@@ -23,11 +22,8 @@ func dataSourceNetboxPrefixes() *schema.Resource {
 func dataSourceNetboxPrefixesRead(d *schema.ResourceData, meta interface{}) error {
 	//out := ipam.NewIPAMPrefixesListParams()
 
-	log.Printf("[DEBUG] jp data_source_netbox_prefixes.go : dataSourceNetboxPrefixesRead %v\n", d)
 	switch {
 	case d.Get("prefixes_id").(int) != 0:
-		log.Println("É um prefixo ...")
-		log.Printf("data_source_netbox_prefixes.go dataSourceNetboxPrefixesRead - Prefixo: %d\n", d.Get("prefixes_id").(int))
 		var parm = ipam.NewIPAMPrefixesReadParams()
 		log.Println("Criei o parm")
 		parm.SetID(int64(d.Get("prefixes_id").(int)))
@@ -41,17 +37,10 @@ func dataSourceNetboxPrefixesRead(d *schema.ResourceData, meta interface{}) erro
 		out, err := c.IPAM.IPAMPrefixesRead(parm, nil)
 		log.Printf("- Executado...\n")
 		if err == nil {
-			log.Printf("Ok na chamada do IPAMPrefixesList\n")
-			log.Printf("Out: %v\n", out)
-			log.Printf("Created: %v\n", &out.Payload.Created)
 			d.Set("created", out.Payload.Created)
-			log.Printf("Description: %v\n", out.Payload.Description)
 			d.Set("description", out.Payload.Description)
-			log.Printf("Family: %v\n", out.Payload.Family)
 			d.Set("family", out.Payload.Family)
-			log.Printf("ID: %v\n", out.Payload.ID)
 			d.Set("is_pool", out.Payload.IsPool)
-			log.Printf("LastUpdated: %v\n", out.Payload.LastUpdated)
 			d.Set("last_updated", out.Payload.LastUpdated)
 			log.Print("\n")
 		} else {
@@ -61,7 +50,6 @@ func dataSourceNetboxPrefixesRead(d *schema.ResourceData, meta interface{}) erro
 			return err
 		}
 	}
-	log.Printf("data_source_netbox_prefixes.go dataSourceNetboxPrefixesRead %v\n", d)
 	//	out := make([]addresses.Address, 1)
 	//	var err error
 	// We need to determine how to get the address. An ID search takes priority,
@@ -162,7 +150,6 @@ func dataSourcePrefixesSchema() map[string]*schema.Schema {
 	for k, v := range s {
 		switch k {
 		case "prefixes_id":
-			log.Printf("[DEBUG] JP dataSourcePrefixesSchema()\n")
 			v.Optional = true
 			v.Computed = true
 			//v.ConflictsWith = []string{"ip_address", "subnet_id", "description", "hostname", "custom_field_filter"}
@@ -174,6 +161,5 @@ func dataSourcePrefixesSchema() map[string]*schema.Schema {
 	// that allows searching for a custom field value in the data source.
 	s["custom_field_filter"] = customFieldFilterSchema([]string{"prefixes_id"})
 
-	log.Printf("data_source_netbox_prefixes.go  dataSourcePrefixesSchema : %v  ", s)
 	return s
 }

@@ -38,3 +38,7 @@ func testAccPreCheck(t *testing.T) {
 		t.Fatal(envErrMsg)
 	}
 }
+
+func testProviderConfigure(d *schema.ResourceData) (interface{}, error) {
+	return nil, nil
+}

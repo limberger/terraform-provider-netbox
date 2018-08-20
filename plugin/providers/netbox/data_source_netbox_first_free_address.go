@@ -1,8 +1,6 @@
 package netbox
 
 import (
-	"log"
-	"reflect"
 
 	// "errors"
 
@@ -27,12 +25,10 @@ func dataSourceFirstFreeAddressSchema() map[string]*schema.Schema {
 	for k, v := range s {
 		switch k {
 		case "ip_address":
-			log.Printf("[DEBUG] JP dataSourceFirstFreeAddressSchema()\n")
 			v.Optional = true
 			// v.Computed = true
 			//v.ConflictsWith = []string{"ip_address", "subnet_id", "description", "hostname", "custom_field_filter"}
 		case "prefixes_id":
-			log.Printf("[DEBUG] JP dataSourceFirstFreeAddressSchema - prefixes_id\n")
 			v.Optional = true
 		default:
 			v.Computed = true
@@ -41,8 +37,6 @@ func dataSourceFirstFreeAddressSchema() map[string]*schema.Schema {
 	// Add the custom_field_filter item to the schema. This is a meta-parameter
 	// that allows searching for a custom field value in the data source.
 	s["custom_field_filter"] = customFieldFilterSchema([]string{"ip_address"})
-
-	log.Printf("*FIM* data_source_netbox_first_free_address dataSourceFirstFreeAddresschema() -> %v", s)
 
 	return s
 }
@@ -55,8 +49,6 @@ func dataSourceNetboxFirstFreeAddress() *schema.Resource {
 }
 
 func dataSourceNetboxFirstFreeAddressRead(d *schema.ResourceData, meta interface{}) error {
-	log.Printf("[DEBUG] JP : dataSourceNetboxFirstFreeAddressRead %v\n", d)
-	log.Printf("Tipo do d : %s\n", reflect.TypeOf(d))
 
 	// switch {
 	// 	case d.Get("prefixes_id").(int) != 0:
