@@ -20,8 +20,8 @@ func init() {
 func Provider() terraform.ResourceProvider {
 	return &schema.Provider{
 		Schema:         providerSchema(),
-		ResourcesMap:   providerResources(),
 		DataSourcesMap: providerDataSourcesMap(),
+		ResourcesMap:   providerResources(),
 		ConfigureFunc:  providerConfigure,
 	}
 }
@@ -60,6 +60,7 @@ func providerSchema() map[string]*schema.Schema {
 // More info here https://github.com/hashicorp/terraform/blob/v0.6.6/helper/schema/resource.go#L17-L81
 func providerResources() map[string]*schema.Resource {
 	return map[string]*schema.Resource{
+		"netbox_vlans":    resourceNetboxVlans(),
 		"netbox_prefixes": resourceNetboxPrefixes(),
 	}
 }

@@ -21,7 +21,7 @@ func dataSourceNetboxPrefixes() *schema.Resource {
 // Read will fetch the data of a resource.
 func dataSourceNetboxPrefixesRead(d *schema.ResourceData, meta interface{}) error {
 	//out := ipam.NewIPAMPrefixesListParams()
-
+	log.Printf("data_source_netbox_prefixes.go dataSourceNetboxPrefixesRead ............ ")
 	switch {
 	case d.Get("prefixes_id").(int) != 0:
 		var parm = ipam.NewIPAMPrefixesReadParams()
@@ -41,6 +41,7 @@ func dataSourceNetboxPrefixesRead(d *schema.ResourceData, meta interface{}) erro
 			d.Set("description", out.Payload.Description)
 			d.Set("family", out.Payload.Family)
 			d.Set("is_pool", out.Payload.IsPool)
+			d.Set("prefix", out.Payload.Prefix)
 			d.Set("last_updated", out.Payload.LastUpdated)
 			log.Print("\n")
 		} else {
@@ -100,11 +101,14 @@ func barePrefixesSchema() map[string]*schema.Schema {
 		"description": &schema.Schema{
 			Type: schema.TypeString,
 		},
+		"prefix": &schema.Schema{
+			Type: schema.TypeString,
+		},
 		"family": &schema.Schema{
 			Type: schema.TypeString,
 		},
 		"vlan": &schema.Schema{
-			Type: schema.TypeInt,
+			Type: schema.TypeMap,
 		},
 		"is_pool": &schema.Schema{
 			Type: schema.TypeBool,
@@ -122,7 +126,8 @@ func resourcePrefixesSchema() map[string]*schema.Schema {
 		switch k {
 		case "prefixes_id":
 			v.Optional = true
-			v.Computed = true
+		case "prefix":
+			v.Optional = true
 			//v.ConflictsWith = []string{"ip_address", "subnet_id", "description", "hostname", "custom_field_filter"}
 		default:
 			v.Computed = true
@@ -151,7 +156,10 @@ func dataSourcePrefixesSchema() map[string]*schema.Schema {
 		switch k {
 		case "prefixes_id":
 			v.Optional = true
-			v.Computed = true
+		case "vlan":
+			v.Optional = true
+		case "prefix":
+			v.Optional = true
 			//v.ConflictsWith = []string{"ip_address", "subnet_id", "description", "hostname", "custom_field_filter"}
 		default:
 			v.Computed = true

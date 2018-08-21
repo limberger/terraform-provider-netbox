@@ -9,6 +9,13 @@ import (
 	// "github.com/digitalocean/go-netbox/netbox/client"
 )
 
+func dataSourceNetboxFirstFreeAddress() *schema.Resource {
+	return &schema.Resource{
+		Read:   dataSourceNetboxFirstFreeAddressRead,
+		Schema: dataSourceFirstFreeAddressSchema(),
+	}
+}
+
 func bareFirstFreeAddressSchema() map[string]*schema.Schema {
 	return map[string]*schema.Schema{
 		"prefixes_id": &schema.Schema{
@@ -26,8 +33,6 @@ func dataSourceFirstFreeAddressSchema() map[string]*schema.Schema {
 		switch k {
 		case "ip_address":
 			v.Optional = true
-			// v.Computed = true
-			//v.ConflictsWith = []string{"ip_address", "subnet_id", "description", "hostname", "custom_field_filter"}
 		case "prefixes_id":
 			v.Optional = true
 		default:
@@ -41,11 +46,22 @@ func dataSourceFirstFreeAddressSchema() map[string]*schema.Schema {
 	return s
 }
 
-func dataSourceNetboxFirstFreeAddress() *schema.Resource {
-	return &schema.Resource{
-		Read:   dataSourceNetboxFirstFreeAddressRead,
-		Schema: dataSourceFirstFreeAddressSchema(),
+func resourceFirstFreeAddressSchema() map[string]*schema.Schema {
+	s := bareFirstFreeAddressSchema()
+
+	for k, v := range s {
+		switch k {
+		case "ip_address":
+			v.Optional = true
+		case "prefixes_id":
+			v.Optional = true
+			//v.ConflictsWith = []string{"ip_address", "subnet_id", "description", "hostname", "custom_field_filter"}
+		default:
+			v.Computed = true
+		}
 	}
+
+	return s
 }
 
 func dataSourceNetboxFirstFreeAddressRead(d *schema.ResourceData, meta interface{}) error {
