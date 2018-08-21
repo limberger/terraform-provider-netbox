@@ -3,13 +3,13 @@ package netbox
 import (
 	"log"
 	"reflect"
-
 	// "errors"
 
-	"github.com/digitalocean/go-netbox/netbox/client/ipam"
 	"github.com/hashicorp/terraform/helper/schema"
+	"github.com/digitalocean/go-netbox/netbox/client/ipam"
 	// "github.com/digitalocean/go-netbox/netbox/client"
 )
+
 
 func dataSourceNetboxPrefixes() *schema.Resource {
 	return &schema.Resource{
@@ -18,41 +18,54 @@ func dataSourceNetboxPrefixes() *schema.Resource {
 	}
 }
 
-// Read will fetch the data of a resource.
 func dataSourceNetboxPrefixesRead(d *schema.ResourceData, meta interface{}) error {
 	//out := ipam.NewIPAMPrefixesListParams()
-	log.Printf("data_source_netbox_prefixes.go dataSourceNetboxPrefixesRead ............ ")
-	switch {
-	case d.Get("prefixes_id").(int) != 0:
-		var parm = ipam.NewIPAMPrefixesReadParams()
-		log.Println("Criei o parm")
-		parm.SetID(int64(d.Get("prefixes_id").(int)))
-		log.Println("Setei o parm")
-		log.Printf("Tipo do parm [meta] : %s", reflect.TypeOf(meta))
-		//(&&meta).IPAM.IPAMPrefixesRead(parm,nil)
 
-		c := meta.(*ProviderNetboxClient).client
-		log.Printf("Obtive o client\n")
-		//parms = ipam.NewIPAMPrefixesListParams()
-		out, err := c.IPAM.IPAMPrefixesRead(parm, nil)
-		log.Printf("- Executado...\n")
-		if err == nil {
-			d.Set("created", out.Payload.Created)
-			d.Set("description", out.Payload.Description)
-			d.Set("family", out.Payload.Family)
-			d.Set("is_pool", out.Payload.IsPool)
-			d.Set("prefix", out.Payload.Prefix)
-			d.Set("last_updated", out.Payload.LastUpdated)
-			log.Print("\n")
-		} else {
-			log.Printf("erro na chamada do IPAMPrefixesList\n")
-			log.Printf("Err: %v\n", err)
-			log.Print("\n")
-			return err
-		}
+	log.Printf("[DEBUG] JP data_source_netbox_prefixes.go : dataSourceNetboxPrefixesRead %v\n",d)
+	switch {
+		case d.Get("prefixes_id").(int) != 0:
+			log.Println("É um prefixo ...")
+			log.Printf("data_source_netbox_prefixes.go dataSourceNetboxPrefixesRead - Prefixo: %i\n", d.Get("prefixes_id").(int))
+			var parm = ipam.NewIPAMPrefixesReadParams()
+			log.Println("Criei o parm\n")
+			parm.SetID(int64(d.Get("prefixes_id").(int)))
+			log.Println("Setei o parm")
+			log.Printf("Tipo do parm [meta] : %s", reflect.TypeOf(meta))
+			//(&&meta).IPAM.IPAMPrefixesRead(parm,nil)
+
+			c := meta.(*ProviderNetboxClient).client
+			log.Printf("Obtive o client\n")
+			//parms = ipam.NewIPAMPrefixesListParams()
+			out , err := c.IPAM.IPAMPrefixesRead(parm,nil)
+			log.Printf("- Executado...\n")
+			if err == nil {
+				log.Printf("Ok na chamada do IPAMPrefixesList\n")
+				log.Printf("Out: %v\n", out)
+				log.Printf("Created: %v\n", &out.Payload.Created)
+				d.Set("Created",out.Payload.Created)
+				log.Printf("Description: %v\n", out.Payload.Description)
+				d.Set("Description",out.Payload.Description)
+				log.Printf("Family: %v\n", out.Payload.Family)
+				d.Set("Family",out.Payload.Family)
+				log.Printf("ID: %v\n", out.Payload.ID)
+				d.Set("ID",out.Payload.ID)
+				log.Printf("IsPool: %v\n", out.Payload.IsPool)
+				d.Set("IsPool",out.Payload.IsPool)
+				log.Printf("LastUpdated: %v\n", out.Payload.LastUpdated)
+				d.Set("LastUpdated",out.Payload.LastUpdated)
+				log.Print("\n")
+
+			} else {
+				log.Printf("erro na chamada do IPAMPrefixesList\n")
+				log.Printf("Err: %v\n", err)
+				log.Print("\n")
+				return err
+			}
+
 	}
-	//	out := make([]addresses.Address, 1)
-	//	var err error
+	log.Printf("data_source_netbox_prefixes.go dataSourceNetboxPrefixesRead %v\n",d)
+//	out := make([]addresses.Address, 1)
+//	var err error
 	// We need to determine how to get the address. An ID search takes priority,
 	// and after that addresss.
 	// switch {
@@ -86,88 +99,8 @@ func dataSourceNetboxPrefixesRead(d *schema.ResourceData, meta interface{}) erro
 	// if err := d.Set("custom_fields", fields); err != nil {
 	// 	return err
 	// }
-	log.Printf("dataSourceNetboxPrefixesRead *FIM*")
 	return nil
 }
 
-func barePrefixesSchema() map[string]*schema.Schema {
-	return map[string]*schema.Schema{
-		"prefixes_id": &schema.Schema{
-			Type: schema.TypeInt,
-		},
-		"created": &schema.Schema{
-			Type: schema.TypeString,
-		},
-		"description": &schema.Schema{
-			Type: schema.TypeString,
-		},
-		"prefix": &schema.Schema{
-			Type: schema.TypeString,
-		},
-		"family": &schema.Schema{
-			Type: schema.TypeString,
-		},
-		"vlan": &schema.Schema{
-			Type: schema.TypeMap,
-		},
-		"is_pool": &schema.Schema{
-			Type: schema.TypeBool,
-		},
-		"last_updated": &schema.Schema{
-			Type: schema.TypeString,
-		},
-	}
-}
 
-func resourcePrefixesSchema() map[string]*schema.Schema {
-	s := barePrefixesSchema()
-
-	for k, v := range s {
-		switch k {
-		case "prefixes_id":
-			v.Optional = true
-		case "prefix":
-			v.Optional = true
-			//v.ConflictsWith = []string{"ip_address", "subnet_id", "description", "hostname", "custom_field_filter"}
-		default:
-			v.Computed = true
-		}
-	}
-	// Add the remove_dns_on_delete item to the schema. This is a meta-parameter
-	// that is not part of the API resource and exists to instruct PHPIPAM to
-	// gracefully remove the address from its DNS integrations as well when it is
-	// removed. The default on this option is true.
-	s["remove_dns_on_delete"] = &schema.Schema{
-		Type:     schema.TypeBool,
-		Optional: true,
-		Default:  true,
-	}
-	return s
-
-}
-
-// dataSourceAddressSchema returns the schema for the phpipam_address data
-// source. It sets the searchable fields and sets up the attribute conflicts
-// between IP address and address ID. It also ensures that all fields are
-// computed as well.
-func dataSourcePrefixesSchema() map[string]*schema.Schema {
-	s := barePrefixesSchema()
-	for k, v := range s {
-		switch k {
-		case "prefixes_id":
-			v.Optional = true
-		case "vlan":
-			v.Optional = true
-		case "prefix":
-			v.Optional = true
-			//v.ConflictsWith = []string{"ip_address", "subnet_id", "description", "hostname", "custom_field_filter"}
-		default:
-			v.Computed = true
-		}
-	}
-	// Add the custom_field_filter item to the schema. This is a meta-parameter
-	// that allows searching for a custom field value in the data source.
-	s["custom_field_filter"] = customFieldFilterSchema([]string{"prefixes_id"})
-
-	return s
-}
+ 

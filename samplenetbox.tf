@@ -1,32 +1,38 @@
 provider "netbox" {
-	app_id = "0123456789abcdef0123456789abcdef01234567"
-	endpoint = "0.0.0.0:32768"
+	app_id = "2fe35cabcfe231ebc8734a798f1cac63439a7a2b"
+	endpoint = "172.17.133.10"
 }
 
-# Busca pelo VLAN ID
-data "netbox_prefixes" "search_by_vid" {
-  vlan = {
-    vid = 16
-  }
-}
-# Mostra o prefixo
-output "search_by_vid_output" {
-  value = "${data.netbox_prefixes.search_by_vid.prefix}"
-}
 data "netbox_prefixes" "prefixes" {
 	prefixes_id = 1
-}
-
-output "out_prefixes" {
-	value = "${data.netbox_prefixes.prefixes.prefix}"
-}
-output "out_prefixes_created" {
-  value = "${data.netbox_prefixes.prefixes.created}"
-}
-output "out_prefixes_description" {
-  value = "${data.netbox_prefixes.prefixes.description}"
 }
 
 data "netbox_first_free_address" "next_address" {
 	prefixes_id = "${data.netbox_prefixes.prefixes.prefixes_id}"
 }
+
+
+
+#data "netbox_subnet" "subnet" {
+#  subnet_address = "10.10.2.0"
+#  subnet_mask    = 24
+#}
+
+
+#data "netbox_first_free_address" "next_address" {
+#  subnet_id = "${data.netbox_subnet.subnet.subnet_id}"
+#}
+
+#resource "netbox_address" {
+#	subnet_id = "${data.netbox_subnet.subnet.subnet_id}"
+#	ip_address = "${data.netbox_first_free_address.next_address.ip_address}"
+#	hostame = "tf-test-host.io.bb.com.br"
+#	description = "Managed by Terraform"
+#
+#	lifecycle {
+#		ignore_changes = [
+#			"subnet_id",
+#			"ip_address",
+#		]
+#	}
+#}
