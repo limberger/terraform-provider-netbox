@@ -11,8 +11,10 @@
 # Output of the go coverage tool, specifically when used with LiteIDE
 *.out
 examples_tst
+crash.log
 
 .terraform
 *.tfstate
 *.tfstate.backup
 pkg
+.tmp/
