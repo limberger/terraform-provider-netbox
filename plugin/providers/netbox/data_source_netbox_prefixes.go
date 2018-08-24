@@ -1,8 +1,9 @@
 package netbox
 
 import (
+	"errors"
+	"fmt"
 	"log"
-	"reflect"
 
 	// "errors"
 
@@ -23,12 +24,10 @@ func dataSourceNetboxPrefixesRead(d *schema.ResourceData, meta interface{}) erro
 	//out := ipam.NewIPAMPrefixesListParams()
 	log.Printf("data_source_netbox_prefixes.go dataSourceNetboxPrefixesRead ............ ")
 	switch {
+	// Pega por prefix_id
 	case d.Get("prefixes_id").(int) != 0:
 		var parm = ipam.NewIPAMPrefixesReadParams()
-		log.Println("Criei o parm")
 		parm.SetID(int64(d.Get("prefixes_id").(int)))
-		log.Println("Setei o parm")
-		log.Printf("Tipo do parm [meta] : %s", reflect.TypeOf(meta))
 		//(&&meta).IPAM.IPAMPrefixesRead(parm,nil)
 
 		c := meta.(*ProviderNetboxClient).client
@@ -37,12 +36,15 @@ func dataSourceNetboxPrefixesRead(d *schema.ResourceData, meta interface{}) erro
 		out, err := c.IPAM.IPAMPrefixesRead(parm, nil)
 		log.Printf("- Executado...\n")
 		if err == nil {
-			d.Set("created", out.Payload.Created)
+
+			d.SetId(string(out.Payload.ID)) // Sempre setar o ID
+			d.Set("created", out.Payload.Created.String())
 			d.Set("description", out.Payload.Description)
 			d.Set("family", out.Payload.Family)
 			d.Set("is_pool", out.Payload.IsPool)
 			d.Set("prefix", out.Payload.Prefix)
 			d.Set("last_updated", out.Payload.LastUpdated)
+			d.Set("vlan_vid", *out.Payload.Vlan.Vid)
 			log.Print("\n")
 		} else {
 			log.Printf("erro na chamada do IPAMPrefixesList\n")
@@ -50,43 +52,39 @@ func dataSourceNetboxPrefixesRead(d *schema.ResourceData, meta interface{}) erro
 			log.Print("\n")
 			return err
 		}
+		// Pega por prefix.vlan.vid
+	case d.Get("vlan_vid").(int) != 0:
+		var parml = ipam.NewIPAMPrefixesListParams()
+		vlan_vid := float64(d.Get("vlan_vid").(int))
+		parml.SetVlanVid(&vlan_vid)
+		c := meta.(*ProviderNetboxClient).client
+		out, err := c.IPAM.IPAMPrefixesList(parml, nil)
+		if err == nil {
+			if *out.Payload.Count == 0 {
+				return errors.New("Prefix not found")
+			} else if *out.Payload.Count > 1 {
+				return errors.New(fmt.Sprintf("More than one Prefix found with vid %v\n", d.Get("vlanvid").(int)))
+			}
+			result := out.Payload.Results[0]
+			d.SetId(string(result.ID)) // Sempre setar o ID
+			d.Set("created", result.Created.String())
+			d.Set("custom_fields", result.CustomFields)
+			d.Set("description", result.Description)
+			d.Set("family", result.Family)
+			d.Set("is_pool", result.IsPool)
+			d.Set("prefix", result.Prefix)
+			d.Set("last_updated", result.LastUpdated)
+			d.Set("vlan_Vid", *result.Vlan.Vid)
+			log.Print("\n")
+		} else {
+			log.Printf("erro na chamada do IPAMPrefixesList\n")
+			log.Printf("Err: %v\n", err)
+			log.Print("\n")
+			return err
+		}
+	default:
+		return errors.New("No valid combination of parameters found - prefix_id or vlan_vid")
 	}
-	//	out := make([]addresses.Address, 1)
-	//	var err error
-	// We need to determine how to get the address. An ID search takes priority,
-	// and after that addresss.
-	// switch {
-	// case d.Get("address_id").(int) != 0:
-	// 	out[0], err = c.GetAddressByID(d.Get("address_id").(int))
-	// 	if err != nil {
-	// 		return err
-	// 	}
-	// case d.Get("ip_address").(string) != "":
-	// 	out, err = c.GetAddressesByIP(d.Get("ip_address").(string))
-	// 	if err != nil {
-	// 		return err
-	// 	}
-	// case d.Get("subnet_id").(int) != 0 && (d.Get("description").(string) != "" || d.Get("hostname").(string) != "" || len(d.Get("custom_field_filter").(map[string]interface{})) > 0):
-	// 	out, err = addressSearchInSubnet(d, meta)
-	// 	if err != nil {
-	// 		return err
-	// 	}
-	// default:
-	// 	return errors.New("No valid combination of parameters found - need one of address_id, ip_address, or subnet_id and (description|hostname|custom_field_filter)")
-	// }
-	// if len(out) != 1 {
-	// 	return errors.New("Your search returned zero or multiple results. Please correct your search and try again")
-	// }
-	// flattenAddress(out[0], d)
-	// fields, err := c.GetAddressCustomFields(out[0].ID)
-	// if err != nil {
-	// 	return err
-	// }
-	// trimMap(fields)
-	// if err := d.Set("custom_fields", fields); err != nil {
-	// 	return err
-	// }
-	log.Printf("dataSourceNetboxPrefixesRead *FIM*")
 	return nil
 }
 
@@ -116,6 +114,9 @@ func barePrefixesSchema() map[string]*schema.Schema {
 		"last_updated": &schema.Schema{
 			Type: schema.TypeString,
 		},
+		"vlan_vid": &schema.Schema{
+			Type: schema.TypeInt,
+		},
 	}
 }
 
@@ -126,9 +127,14 @@ func resourcePrefixesSchema() map[string]*schema.Schema {
 		switch k {
 		case "prefixes_id":
 			v.Optional = true
+			v.ConflictsWith = []string{"vlan_vid"}
 		case "prefix":
 			v.Optional = true
-			//v.ConflictsWith = []string{"ip_address", "subnet_id", "description", "hostname", "custom_field_filter"}
+		case "created":
+			v.Optional = true
+		case "vlan_vid":
+			v.Optional = true
+			v.ConflictsWith = []string{"prefixes_id"}
 		default:
 			v.Computed = true
 		}
@@ -156,9 +162,11 @@ func dataSourcePrefixesSchema() map[string]*schema.Schema {
 		switch k {
 		case "prefixes_id":
 			v.Optional = true
-		case "vlan":
+		case "vlan_vid":
 			v.Optional = true
 		case "prefix":
+			v.Optional = true
+		case "created":
 			v.Optional = true
 			//v.ConflictsWith = []string{"ip_address", "subnet_id", "description", "hostname", "custom_field_filter"}
 		default:

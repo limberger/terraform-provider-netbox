@@ -40,7 +40,7 @@ func resourceNetboxPrefixesCreate(d *schema.ResourceData, meta interface{}) erro
 	c := meta.(*ProviderNetboxClient).client
 	var parm = ipam.NewIPAMPrefixesCreateParams()
 	log.Println("Criei o parm")
-	parm.Data.ID = int64(d.Get("prefixes_id").(int))
+	parm.Data.ID = int64(d.Get("ip_address").(int))
 	//parm.Set("ID", int64(d.Get("prefixes_id").(int)))
 	//parm.SetCreated(d.Get("prefixes_created"))
 	log.Println("Setei o parm")

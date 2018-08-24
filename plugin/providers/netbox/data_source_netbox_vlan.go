@@ -89,6 +89,8 @@ func dataSourceNetboxVlansRead(d *schema.ResourceData, meta interface{}) error {
 			d.Set("nested-site", result.Site)
 			d.Set("vlan-status", result.Status)
 			d.Set("nested-tenant", result.Tenant)
+			d.Set("custom-fields", result.CustomFields)
+			log.Printf("Custom Fields: %v\n", result.CustomFields)
 		} else {
 			log.Printf("erro na chamada do IPAMVlansList\n")
 			log.Printf("Err: %v\n", err)

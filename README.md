@@ -53,7 +53,7 @@ data "netbox_prefixes" "prefixes" {
   prefixes_id = 1
 }
 
-data "netbox_first_free_address" "next_address" {
+data "netbox_prefixes_available_ips" "next_address" {
   prefixes_id = "${data.netbox_prefixes.prefixes.prefixes_id}"
 }
 ```

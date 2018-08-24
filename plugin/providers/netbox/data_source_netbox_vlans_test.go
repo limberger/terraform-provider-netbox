@@ -9,11 +9,19 @@ import (
 
 const testAccDataSourceNetboxVlansConfig = `
 data "netbox_vlans" "vlans_by_name" {
-  name = "Vlan16"
+  name = "VLAN 17"
 }
 
 data "netbox_vlans" "vlans_by_id" {
   vid = "${data.netbox_vlans.vlans_by_name.vid}"
+}
+
+data "netbox_vlans" "vlans_by_name16" {
+  name = "VLAN 16"
+}
+
+data "netbox_vlans" "vlans_by_id16" {
+  vid = "${data.netbox_vlans.vlans_by_name16.vid}"
 }
 `
 

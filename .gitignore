@@ -13,6 +13,7 @@
 examples_tst
 crash.log
 
+teste.tf
 .terraform
 *.tfstate
 *.tfstate.backup
