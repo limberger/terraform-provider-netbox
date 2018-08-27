@@ -29,7 +29,7 @@ Linux, OS X, and Windows.
 ## Usage
 
 After installation, to use the plugin, simply use any of its resources or data
-sources (such as `netbox_subnet` or `netbox_address` in a Terraform
+sources (such as `netbox_prefixes`, `netbox_vlans` or `netbox_prefixes_available_ips` in a Terraform
 configuration.
 
 Credentials can be supplied via configuration variables to the `netbox`
@@ -45,8 +45,8 @@ along to the configuration for a VM, say, for example, a
 
 ```
 provider "netbox" {
-  app_id = "2fe35cabcfe231ebc8734a798f1cac63439a7a2b"
-  endpoint = "172.17.133.10"
+  app_id = "0123456789abcdef0123456789abcdef01234567"
+  endpoint = "0.0.0.0:32768"
 }
 
 data "netbox_prefixes" "prefixes" {
