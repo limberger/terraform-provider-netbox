@@ -47,7 +47,7 @@ data "netbox_vlans" "vlans_by_id16" {
 
 # Criando o IP
 
-data "netbox_prefixes_available_ips" "next_address" {
+resource "netbox_prefixes_available_ips" "next_address" {
 	prefixes_id = "${data.netbox_prefixes.prefixes.prefixes_id}"
-	description = "IP requisitado via Terraform Realmente Novo"
+	description = "IP requisitado via Terraform 20180827"
 }
