@@ -49,5 +49,5 @@ data "netbox_vlans" "vlans_by_id16" {
 
 data "netbox_prefixes_available_ips" "next_address" {
 	prefixes_id = "${data.netbox_prefixes.prefixes.prefixes_id}"
-	description = "IP requisitado via Terraform para teste - HOJE"
+	description = "IP requisitado via Terraform Realmente Novo"
 }

@@ -60,8 +60,9 @@ func providerSchema() map[string]*schema.Schema {
 // More info here https://github.com/hashicorp/terraform/blob/v0.6.6/helper/schema/resource.go#L17-L81
 func providerResources() map[string]*schema.Resource {
 	return map[string]*schema.Resource{
-		"netbox_vlans":    resourceNetboxVlans(),
-		"netbox_prefixes": resourceNetboxPrefixes(),
+		"netbox_vlans":                  resourceNetboxVlans(),
+		"netbox_prefixes":               resourceNetboxPrefixes(),
+		"netbox_prefixes_available_ips": resourceNetboxPrefixesAvailableIps(),
 	}
 }
 
@@ -74,9 +75,8 @@ func providerResources() map[string]*schema.Resource {
 
 func providerDataSourcesMap() map[string]*schema.Resource {
 	return map[string]*schema.Resource{
-		"netbox_vlans":                  dataSourceNetboxVlans(),
-		"netbox_prefixes":               dataSourceNetboxPrefixes(),
-		"netbox_prefixes_available_ips": dataSourceNetboxPrefixesAvailableIps(),
+		"netbox_vlans":    dataSourceNetboxVlans(),
+		"netbox_prefixes": dataSourceNetboxPrefixes(),
 	}
 }
 
