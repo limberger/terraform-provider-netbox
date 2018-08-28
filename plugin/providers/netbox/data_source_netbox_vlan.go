@@ -45,15 +45,16 @@ func dataSourceNetboxVlansRead(d *schema.ResourceData, meta interface{}) error {
 			d.SetId(strconv.Itoa(int(result.ID)))
 			d.Set("created", result.Created)
 			d.Set("description", result.Description)
-			d.Set("display-name", result.DisplayName)
+			d.Set("display_name", result.DisplayName)
 			d.Set("group", result.Group)
 			d.Set("vid", *result.Vid)
-			d.Set("last-updated", result.LastUpdated)
+			d.Set("last_updated", result.LastUpdated)
 			d.Set("name", *result.Name)
-			d.Set("nested-role", result.Role)
-			d.Set("nested-site", result.Site)
-			d.Set("vlan-status", result.Status)
-			d.Set("nested-tenant", result.Tenant)
+			d.Set("role", result.Role)
+			d.Set("nested_site", result.Site)
+			d.Set("vlan_status", result.Status)
+			d.Set("nested_tenant", result.Tenant)
+			d.Set("custom_fields", result.CustomFields)
 
 		} else {
 			log.Printf("erro na chamada do IPAMVlansList\n")
@@ -79,17 +80,17 @@ func dataSourceNetboxVlansRead(d *schema.ResourceData, meta interface{}) error {
 			d.SetId(strconv.Itoa(int(result.ID)))
 			d.Set("created", result.Created)
 			d.Set("description", result.Description)
-			d.Set("display-name", result.DisplayName)
+			d.Set("display_name", result.DisplayName)
 			d.Set("group", result.Group)
 			log.Printf("Por nome: result.Vid %v Nome: %v Buscado: %v\n", *result.Vid, *result.Name, name)
 			d.Set("vid", *result.Vid)
-			d.Set("last-updated", result.LastUpdated)
+			d.Set("last_updated", result.LastUpdated)
 			d.Set("name", *result.Name)
-			d.Set("nested-role", result.Role)
-			d.Set("nested-site", result.Site)
-			d.Set("vlan-status", result.Status)
-			d.Set("nested-tenant", result.Tenant)
-			d.Set("custom-fields", result.CustomFields)
+			d.Set("role", result.Role)
+			d.Set("nested_site", result.Site)
+			d.Set("vlan_status", result.Status)
+			d.Set("nested_tenant", result.Tenant)
+			d.Set("custom_fields", result.CustomFields)
 			log.Printf("Custom Fields: %v\n", result.CustomFields)
 		} else {
 			log.Printf("erro na chamada do IPAMVlansList\n")
@@ -138,13 +139,10 @@ func bareVlanSchema() map[string]*schema.Schema {
 		"tenant": &schema.Schema{
 			Type: schema.TypeString,
 		},
-		"role_id": &schema.Schema{
-			Type: schema.TypeString,
-		},
 		"role": &schema.Schema{
-			Type: schema.TypeString,
+			Type: schema.TypeMap,
 		},
-		"status": &schema.Schema{
+		"vlan_status": &schema.Schema{
 			Type: schema.TypeString,
 		},
 		"tag": &schema.Schema{
@@ -157,6 +155,9 @@ func bareVlanSchema() map[string]*schema.Schema {
 		// The initial index from which to return the results.
 		"offset": &schema.Schema{
 			Type: schema.TypeInt,
+		},
+		"custom_fields": &schema.Schema{
+			Type: schema.TypeMap,
 		},
 	}
 }
@@ -172,6 +173,12 @@ func resourceVlansSchema() map[string]*schema.Schema {
 		case "name":
 			v.Optional = true
 			v.Computed = true
+		case "custom_fields":
+			v.Optional = true
+		case "vlan_status":
+			v.Optional = true
+		case "role":
+			v.Optional = true
 			//v.ConflictsWith = []string{"ip_address", "subnet_id", "description", "hostname", "custom_field_filter"}
 		default:
 			v.Computed = true
@@ -203,6 +210,10 @@ func dataSourceVlanSchema() map[string]*schema.Schema {
 		case "name":
 			v.Optional = true
 			v.Computed = true
+		case "custom_fields":
+			v.Optional = true
+		case "vlan_status":
+			v.Optional = true
 
 			//v.ConflictsWith = []string{"ip_address", "subnet_id", "description", "hostname", "custom_field_filter"}
 		default:
