@@ -52,7 +52,7 @@ func dataSourceNetboxVlansRead(d *schema.ResourceData, meta interface{}) error {
 			d.Set("name", *result.Name)
 			d.Set("role", result.Role)
 			d.Set("nested_site", result.Site)
-			d.Set("vlan_status", result.Status)
+			d.Set("status", result.Status)
 			d.Set("nested_tenant", result.Tenant)
 			d.Set("custom_fields", result.CustomFields)
 
@@ -88,7 +88,7 @@ func dataSourceNetboxVlansRead(d *schema.ResourceData, meta interface{}) error {
 			d.Set("name", *result.Name)
 			d.Set("role", result.Role)
 			d.Set("nested_site", result.Site)
-			d.Set("vlan_status", result.Status)
+			d.Set("status", result.Status)
 			d.Set("nested_tenant", result.Tenant)
 			d.Set("custom_fields", result.CustomFields)
 			log.Printf("Custom Fields: %v\n", result.CustomFields)
@@ -142,7 +142,7 @@ func bareVlanSchema() map[string]*schema.Schema {
 		"role": &schema.Schema{
 			Type: schema.TypeMap,
 		},
-		"vlan_status": &schema.Schema{
+		"status": &schema.Schema{
 			Type: schema.TypeString,
 		},
 		"tag": &schema.Schema{
@@ -175,7 +175,7 @@ func resourceVlansSchema() map[string]*schema.Schema {
 			v.Computed = true
 		case "custom_fields":
 			v.Optional = true
-		case "vlan_status":
+		case "status":
 			v.Optional = true
 		case "role":
 			v.Optional = true
@@ -212,7 +212,7 @@ func dataSourceVlanSchema() map[string]*schema.Schema {
 			v.Computed = true
 		case "custom_fields":
 			v.Optional = true
-		case "vlan_status":
+		case "status":
 			v.Optional = true
 
 			//v.ConflictsWith = []string{"ip_address", "subnet_id", "description", "hostname", "custom_field_filter"}
