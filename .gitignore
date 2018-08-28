@@ -17,5 +17,4 @@ teste.tf
 .terraform
 *.tfstate
 *.tfstate.backup
-pkg
 .tmp/
