@@ -20,7 +20,8 @@ type Config struct {
 }
 
 type ProviderNetboxClient struct {
-	client *client.NetBox
+	client        *client.NetBox
+	configuration Config
 }
 
 // ProviderNetboxClient is a structure that contains the client connections
@@ -47,7 +48,8 @@ func (c *Config) Client() (interface{}, error) {
 		return nil, err
 	}
 	cs := ProviderNetboxClient{
-		client: cli,
+		client:        cli,
+		configuration: cfg,
 	}
 	return &cs, nil
 }

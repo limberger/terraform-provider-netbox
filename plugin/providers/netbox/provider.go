@@ -12,7 +12,7 @@ func init() {
 	descriptions = map[string]string{
 		"app_id":   "The application ID required for API requests",
 		"endpoint": "The full URL (plus path) to the API endpoint",
-		"timeout":  "Max. wait time should wait for a successful connection to the API",
+		// "timeout":  "Max. wait time should wait for a successful connection to the API",
 	}
 }
 
@@ -87,7 +87,7 @@ func providerConfigure(d *schema.ResourceData) (interface{}, error) {
 	config := Config{
 		AppID:    d.Get("app_id").(string),
 		Endpoint: d.Get("endpoint").(string),
-		Timeout:  d.Get("timeout").(string),
+		// Timeout:  d.Get("timeout").(string),
 	}
 	return config.Client()
 }
