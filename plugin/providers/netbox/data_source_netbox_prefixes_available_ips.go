@@ -125,9 +125,19 @@ func resourceNetboxPrefixesAvailableIpsCreate(d *schema.ResourceData, meta inter
 		return errors.New("description not informed")
 	}
 	description := d.Get("description").(string)
-	log.Printf("Inclusao prefixo     %v\n", prefixes_id)
-	log.Printf("Inclusao description %v\n", description)
-	url := "http://netbox.io.bb.com.br/api/ipam/prefixes/" + strconv.Itoa(prefixes_id) + "/available-ips/"
+	log.Printf("[DEBUG] Inclusao prefixo     %v\n", prefixes_id)
+	log.Printf("[DEBUG] Inclusao description %v\n", description)
+
+	c := meta.(*ProviderNetboxClient).configuration
+	log.Printf("[DEBUG] Configuration [%v]\n", c)
+	log.Printf("[DEBUG] AppID [%v]\n", c.AppID)
+	log.Printf("[DEBUG] Endpoint [%v]\n", c.Endpoint)
+
+	// log.Printf("%v", *Config.cfg)
+	// log.Printf("[DEBUG] Config.AppID %v\n", Config.AppID)
+	// log.Printf("[DEBUG] Config.Endpoint %v\n", *Config.Endpoint)
+
+	url := "http://" + c.Endpoint + "/api/ipam/prefixes/" + strconv.Itoa(prefixes_id) + "/available-ips/"
 	jsonData := map[string]string{"description": description}
 	jsonValue, _ := json.Marshal(jsonData)
 	log.Printf("[DEBUG] JSON: [%v]\n", string(jsonValue))
@@ -138,7 +148,7 @@ func resourceNetboxPrefixesAvailableIpsCreate(d *schema.ResourceData, meta inter
 		return err
 	}
 	req.Header.Set("Accept", "application/json")
-	req.Header.Set("authorization", "Token 2fe35cabcfe231ebc8734a798f1cac63439a7a2b")
+	req.Header.Set("authorization", "Token "+c.AppID)
 	req.Header.Set("cache-control", "no-cache")
 	req.Header.Set("content-type", "application/json")
 	log.Println("[DEBUG] http.Client create")

@@ -27,8 +27,11 @@ type Config struct {
 	Timeout string
 }
 
+var cfg = Config{}
+
 type ProviderNetboxClient struct {
-	client *client.NetBox
+	client        *client.NetBox
+	configuration *Config
 }
 
 // ProviderNetboxClient is a structure that contains the client connections
@@ -38,16 +41,15 @@ type ProviderNetboxClient struct {
 //}
 
 // DefaultConfigProvider supplies a default configuration:
-//  * AppID defaults to PHPIPAM_APP_ID, if set, otherwise empty
-//  * Endpoint defaults to PHPIPAM_ENDPOINT_ADDR, otherwise http://localhost/api
-//  * Password defaults to PHPIPAM_PASSWORD, if set, otherwise empty
-//  * Username defaults to PHPIPAM_USER_NAME, if set, otherwise empty
+//  * AppID defaults to NETBOX_APP_ID, if set, otherwise empty
+//  * Endpoint defaults to NETBOX_ENDPOINT_ADDR, otherwise http://localhost/api
+//  * Username defaults to NETBOX_USER_NAME, if set, otherwise empty
 //
 // This essentially loads an initial config state for any given
 // API service.
 func DefaultConfigProvider() Config {
 	env := os.Environ()
-	cfg := Config{
+	cfg = Config{
 		Endpoint: defaultAPIAddress,
 	}
 
@@ -91,7 +93,8 @@ func (c *Config) Client() (interface{}, error) {
 		return nil, err
 	}
 	cs := ProviderNetboxClient{
-		client: cli,
+		client:        cli,
+		configuration: &cfg,
 	}
 	return &cs, nil
 }
