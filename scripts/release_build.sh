@@ -2,7 +2,7 @@
 
 declare -A args=(
   # The GPG key to sign the binaries with.
-  [keyid]="A8F6BE96934A4E84"
+  [keyid]="DE5A48C27BE2210A0CA550038400798E499C84AA"
 
   # The name of the target binary.
   [binname]="terraform-provider-netbox"
