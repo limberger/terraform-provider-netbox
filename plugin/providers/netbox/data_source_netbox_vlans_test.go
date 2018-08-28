@@ -57,7 +57,7 @@ func TestAccDataSourceNetboxVlans(t *testing.T) {
 				Config: testAccDataSourceNetboxVlansConfig,
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttrPair("data.netbox_vlans.vlans_by_name", "vid", "data.netbox_vlans.vlans_by_id", "vid"),
-					// resource.TestCheckResourceAttrPair("data.netbox_vlans.address_by_address", "ip_address", "data.phpipam_address.address_by_id", "ip_address"),
+					// resource.TestCheckResourceAttrPair("data.netbox_vlans.address_by_address", "ip_address", "data.netbox_address.address_by_id", "ip_address"),
 					// resource.TestCheckResourceAttr("data.netbox_vlans.address_by_address", "description", "Gateway"),
 					// resource.TestCheckResourceAttr("data.netbox_vlans", "ip_address", "10.10.1.3"),
 					// resource.TestCheckResourceAttr("data.netbox_vlans.address_by_description", "ip_address", "10.10.1.4"),

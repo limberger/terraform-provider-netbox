@@ -2,15 +2,10 @@ package netbox
 
 import (
 	"log"
-	"os"
-	"strings"
 
 	api "github.com/digitalocean/go-netbox/netbox"
 	"github.com/digitalocean/go-netbox/netbox/client"
 )
-
-// The default PHPIPAM API endpoint.
-const defaultAPIAddress = "http://localhost/api"
 
 // Config provides the configuration for the NETBOX providerr.
 type Config struct {
@@ -22,16 +17,10 @@ type Config struct {
 	// The API endpoint. This defaults to http://localhost/api, and can also be
 	// supplied via the NETBOX_ENDPOINT_ADDR environment variable.
 	Endpoint string
-
-	// Optional timeout to API calls
-	Timeout string
 }
 
-var cfg = Config{}
-
 type ProviderNetboxClient struct {
-	client        *client.NetBox
-	configuration *Config
+	client *client.NetBox
 }
 
 // ProviderNetboxClient is a structure that contains the client connections
@@ -40,48 +29,13 @@ type ProviderNetboxClient struct {
 //		client *Client
 //}
 
-// DefaultConfigProvider supplies a default configuration:
-//  * AppID defaults to NETBOX_APP_ID, if set, otherwise empty
-//  * Endpoint defaults to NETBOX_ENDPOINT_ADDR, otherwise http://localhost/api
-//  * Username defaults to NETBOX_USER_NAME, if set, otherwise empty
-//
-// This essentially loads an initial config state for any given
-// API service.
-func DefaultConfigProvider() Config {
-	env := os.Environ()
-	cfg = Config{
-		Endpoint: defaultAPIAddress,
-	}
-
-	for _, v := range env {
-		d := strings.Split(v, "=")
-		switch d[0] {
-		case "NETBOX_APP_ID":
-			cfg.AppID = d[1]
-		case "NETBOX_ENDPOINT_ADDR":
-			cfg.Endpoint = d[1]
-		case "NETBOX_TIMEOUT":
-			cfg.Timeout = d[1]
-		}
-	}
-	return cfg
-}
-
 func (c *Config) Client() (interface{}, error) {
 	log.Printf("[DEBUG] config.go Client() AppID: %s", c.AppID)
-
+	log.Printf("[DEBUG] config.go Client() Endpoint: %s", c.Endpoint)
 	cfg := Config{
 		AppID:    c.AppID,
 		Endpoint: c.Endpoint,
-		Timeout:  c.Timeout,
 	}
-
-	// Se o endpoint for vazio ou o AppId for vazio,
-	// Busca configuração Default (ENV)
-	if c.Endpoint == "" || c.AppID == "" {
-		cfg = DefaultConfigProvider()
-	}
-
 	log.Printf("[DEBUG] Initializing Netbox controllers")
 	// sess := session.NewSession(cfg)
 	// Create the Client
@@ -93,8 +47,7 @@ func (c *Config) Client() (interface{}, error) {
 		return nil, err
 	}
 	cs := ProviderNetboxClient{
-		client:        cli,
-		configuration: &cfg,
+		client: cli,
 	}
 	return &cs, nil
 }

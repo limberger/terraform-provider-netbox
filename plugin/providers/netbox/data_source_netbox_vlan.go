@@ -185,7 +185,7 @@ func resourceVlansSchema() map[string]*schema.Schema {
 		}
 	}
 	// Add the remove_dns_on_delete item to the schema. This is a meta-parameter
-	// that is not part of the API resource and exists to instruct PHPIPAM to
+	// that is not part of the API resource and exists to instruct NETBOX to
 	// gracefully remove the address from its DNS integrations as well when it is
 	// removed. The default on this option is true.
 	s["remove_dns_on_delete"] = &schema.Schema{
@@ -196,7 +196,7 @@ func resourceVlansSchema() map[string]*schema.Schema {
 	return s
 }
 
-// dataSourceAddressSchema returns the schema for the phpipam_address data
+// dataSourceAddressSchema returns the schema for the NETBOX_VLANS data
 // source. It sets the searchable fields and sets up the attribute conflicts
 // between IP address and address ID. It also ensures that all fields are
 // computed as well.
