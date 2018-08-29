@@ -2,7 +2,7 @@
 
 declare -A args=(
   # The GPG key to sign the binaries with.
-  [keyid]="DE5A48C27BE2210A0CA550038400798E499C84AA"
+  [keyid]="416B71F32ED93F57B6DADA93A8F6BE96934A4E84"
 
   # The name of the target binary.
   [binname]="terraform-provider-netbox"
@@ -47,6 +47,7 @@ get_release() {
   versions=($(git tag --sort "-v:refname" | egrep '^v[0-9]+\.[0-9]+\.[0-9]+' | head -n 10))
 
   if [ -z "${versions[*]}" ]; then
+    echo "${versions[*]}"
     message error "No non-prerelease versions available at this time. Please release a version first"
     message error "and ensure the build has a matching vMAJOR.MINOR.PATCH tag."
     exit 1
@@ -68,6 +69,8 @@ get_release() {
     exit 1
   fi
 
+  #echo "Executing checkout: ${versions[$selection_number]}"
+  echo "${versions[$selection_number]}"
   git checkout "${versions[$selection_number]}"
   echo "${versions[$selection_number]}"
 }
@@ -91,48 +94,54 @@ move_files() {
   local __release="$1"
   local __os=""
   local __arch=""
+  echo "Move files ${__release}"
   set -e 
   rm -rf pkg/dist
   mkdir -p pkg/dist
   for __os in ${args[target_os]}; do
+    echo "OS: $__os"
     for __arch in ${args[target_arch]}; do
       if [ "${__os}" == "windows" ]; then
+        echo "zip -j \"pkg/dist/${args[binname]}_${__release}_${__os}_${__arch}.zip\" \"pkg/${__os}_${__arch}/${args[binname]}.exe\""
         zip -j "pkg/dist/${args[binname]}_${__release}_${__os}_${__arch}.zip" "pkg/${__os}_${__arch}/${args[binname]}.exe"
       else
-        zip -j "pkg/dist/${args[binname]}_${__release}_${__os}_${__arch}.zip" "pkg/${__os}_${__arch}/${args[binname]}"
+	echo "zip -j \"pkg/dist/${args[binname]}_${__release}_${__os}_${__arch}.zip\" \"pkg/${__os}_${__arch}/${args[binname]}\""
+	zip -j "pkg/dist/${args[binname]}_${__release}_${__os}_${__arch}.zip" "pkg/${__os}_${__arch}/${args[binname]}"
       fi
     done
   done
   set +e
-}
+	}
 
-# sign_files creates a SHA256SUMS files for the releases, and creates
-# a detatched GPG signature.
-sign_files() {
-  local __release="$1"
-  (
-    set -e
-    cd pkg/dist
-    shasum -a256 -- * > "./${args[binname]}_${__release}_SHA256SUMS"
-    gpg --default-key "${args[keyid]}" --detach-sig "./${args[binname]}_${__release}_SHA256SUMS"
-  )
-  local __status=$?
-  if [ "${__status}" != "0" ]; then
-    message error "ERROR: Release signing exited with code ${__status}"
-    exit 1
-  fi
-}
+	# sign_files creates a SHA256SUMS files for the releases, and creates
+	# a detatched GPG signature.
+	sign_files() {
+	  local __release="$1"
+	  (
+	    set -e
+	    cd pkg/dist
+	    shasum -a256 -- * > "./${args[binname]}_${__release}_SHA256SUMS"
+	    gpg --default-key "${args[keyid]}" --detach-sig "./${args[binname]}_${__release}_SHA256SUMS"
+	  )
+	  local __status=$?
+	  if [ "${__status}" != "0" ]; then
+	    message error "ERROR: Release signing exited with code ${__status}"
+	    exit 1
+	  fi
+	}
 
-## Main
-if [ "$(git rev-parse HEAD)" != "$(git rev-parse master)" ]; then
-  message error "ERROR: Current HEAD does not match master."
-  message error "Please switch HEAD back to master before running this script."
-  exit 1
-fi
+	## Main
+	if [ "$(git rev-parse HEAD)" != "$(git rev-parse master)" ]; then
+	  message error "ERROR: Current HEAD does not match master."
+	  message error "Please switch HEAD back to master before running this script."
+	  exit 1
+	fi
 
-release="$(get_release)"
+	release="$(get_release)"
 
-build "${release}"
-move_files "${release}"
+	echo "Executing build ${release}"
+	build "${release}"
+	echo "Executing move_files ${release}"
+	move_files "${release}"
 sign_files "${release}"
 git checkout master
