@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"strconv"
 
 	// "errors"
 
@@ -37,7 +38,7 @@ func dataSourceNetboxPrefixesRead(d *schema.ResourceData, meta interface{}) erro
 		log.Printf("- Executado...\n")
 		if err == nil {
 
-			d.SetId(string(out.Payload.ID)) // Sempre setar o ID
+			d.SetId(strconv.FormatInt(out.Payload.ID, 10)) // Sempre setar o ID
 			d.Set("created", out.Payload.Created.String())
 			d.Set("description", out.Payload.Description)
 			d.Set("family", out.Payload.Family)
@@ -66,7 +67,7 @@ func dataSourceNetboxPrefixesRead(d *schema.ResourceData, meta interface{}) erro
 				return errors.New(fmt.Sprintf("More than one Prefix found with vid %v\n", d.Get("vlanvid").(int)))
 			}
 			result := out.Payload.Results[0]
-			d.SetId(string(result.ID)) // Sempre setar o ID
+			d.SetId(strconv.FormatInt(result.ID, 10)) // Sempre setar o ID
 			d.Set("created", result.Created.String())
 			d.Set("custom_fields", result.CustomFields)
 			d.Set("description", result.Description)

@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/digitalocean/go-netbox/netbox/client/ipam"
 	"github.com/hashicorp/terraform/helper/schema"
@@ -40,6 +41,9 @@ func barePrefixesAvailableIpsSchema() map[string]*schema.Schema {
 			Type: schema.TypeInt,
 		},
 		"address": &schema.Schema{
+			Type: schema.TypeString,
+		},
+		"mask": &schema.Schema{
 			Type: schema.TypeString,
 		},
 		"custom_fields": &schema.Schema{
@@ -89,6 +93,10 @@ func resourcePrefixesAvailableIpsSchema() map[string]*schema.Schema {
 			v.Optional = true
 		case "address":
 			v.Optional = true
+			v.Computed = true
+		case "mask":
+			v.Optional = true
+			v.Computed = true
 		case "custom_fields":
 			v.Optional = true
 		case "status":
@@ -181,7 +189,10 @@ func resourceNetboxPrefixesAvailableIpsCreate(d *schema.ResourceData, meta inter
 	// log.Printf("[DEBUG] family [%v]\n", i["family"].(int))
 	// d.Set("family", i["family"].(int))
 	log.Println("[DEBUG] address")
-	d.Set("address", i["address"].(string))
+
+	d.Set("mask", strings.Split(i["address"].(string), "/")[1])
+	d.Set("address", strings.Split(i["address"].(string), "/")[0])
+
 	d.Set("address_id", strconv.FormatFloat(i["id"].(float64), 'f', -1, 64))
 	log.Println("[DEBUG] description")
 	d.Set("description", i["description"].(string))
@@ -209,7 +220,10 @@ func resourceNetboxPrefixesAvailableIpsRead(d *schema.ResourceData, meta interfa
 
 			d.SetId(string(out.Payload.ID)) // Sempre setar o ID
 			d.Set("address_id", out.Payload.ID)
-			d.Set("address", out.Payload.Address)
+
+			d.Set("mask", strings.Split(*out.Payload.Address, "/")[1])
+			d.Set("address", strings.Split(*out.Payload.Address, "/")[0])
+
 			log.Printf("Setando Address_id %v\n", out.Payload.ID)
 			d.Set("created", out.Payload.Created)
 			if out.Payload.CustomFields != nil {
