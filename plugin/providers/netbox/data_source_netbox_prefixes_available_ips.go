@@ -88,22 +88,30 @@ func resourcePrefixesAvailableIpsSchema() map[string]*schema.Schema {
 		switch k {
 		case "address_id":
 			v.Optional = true
+			v.Computed = true
 		case "prefixes_id":
 			v.Optional = true
+			v.Computed = true
 		case "description":
 			v.Optional = true
 		case "family":
 			v.Optional = true
+			v.Computed = true
 		case "address":
 			v.Optional = true
+			v.Computed = true
 		case "ip":
 			v.Optional = true
+			v.Computed = true
 		case "mask":
 			v.Optional = true
+			v.Computed = true
 		case "custom_fields":
 			v.Optional = true
+			v.Computed = true
 		case "status":
 			v.Optional = true
+			v.Computed = true
 		case "created":
 			v.Optional = true
 
@@ -212,9 +220,10 @@ func resourceNetboxPrefixesAvailableIpsRead(d *schema.ResourceData, meta interfa
 	log.Printf("resourceNetboxPrefixesAvailableIpsRead ............ ")
 	switch {
 	// Pega por prefix_id
-	case d.Get("address_id").(int) != 0: // Obrigatório
+	case d.Id() != "":
 		var parm = ipam.NewIPAMIPAddressesReadParams()
-		parm.SetID(int64(d.Get("prefixes_id").(int)))
+		id, _ := strconv.ParseInt(d.Id(), 10, 64)
+		parm.SetID(id)
 		//(&&meta).IPAM.IPAMPrefixesRead(parm,nil)
 
 		c := meta.(*ProviderNetboxClient).client
@@ -222,9 +231,7 @@ func resourceNetboxPrefixesAvailableIpsRead(d *schema.ResourceData, meta interfa
 		log.Printf("- Executado...\n")
 		if err == nil {
 
-			d.SetId(string(out.Payload.ID)) // Sempre setar o ID
 			d.Set("address_id", out.Payload.ID)
-
 			d.Set("address", out.Payload.Address)
 
 			d.Set("mask", strings.Split(*out.Payload.Address, "/")[1])
@@ -258,7 +265,53 @@ func resourceNetboxPrefixesAvailableIpsRead(d *schema.ResourceData, meta interfa
 			log.Print("\n")
 			return err
 		}
-		// Pega por prefix.vlan.vid
+
+	case d.Get("address_id").(int) != 0: // Obrigatório
+		var parm = ipam.NewIPAMIPAddressesReadParams()
+		parm.SetID(int64(d.Get("address_id").(int)))
+		//(&&meta).IPAM.IPAMPrefixesRead(parm,nil)
+
+		c := meta.(*ProviderNetboxClient).client
+		out, err := c.IPAM.IPAMIPAddressesRead(parm, nil)
+		log.Printf("- Executado...\n")
+		if err == nil {
+
+			d.SetId(string(out.Payload.ID)) // Sempre setar o ID
+			d.Set("address_id", out.Payload.ID)
+			d.Set("address", out.Payload.Address)
+
+			d.Set("mask", strings.Split(*out.Payload.Address, "/")[1])
+			d.Set("ip", strings.Split(*out.Payload.Address, "/")[0])
+
+			log.Printf("Setando Address_id %v\n", out.Payload.ID)
+			d.Set("created", out.Payload.Created)
+			if out.Payload.CustomFields != nil {
+				d.Set("custom_fields", out.Payload.CustomFields)
+			}
+			d.Set("description", out.Payload.Description)
+			d.Set("family", out.Payload.Family)
+			if out.Payload.Interface != nil {
+				d.Set("interface_id", out.Payload.Interface.ID)
+				d.Set("interface_name", out.Payload.Interface.Name)
+			}
+			if out.Payload.Role != nil {
+				d.Set("role_id", out.Payload.Role.Value)
+				d.Set("role_label", out.Payload.Role.Label)
+			}
+			if out.Payload.Status != nil {
+				d.Set("status_id", out.Payload.Status.Value)
+				d.Set("status_label", out.Payload.Status.Value)
+			}
+
+			d.Set("last_updated", out.Payload.LastUpdated)
+			log.Print("\n")
+		} else {
+			log.Printf("erro na chamada do IPAMIPAddressesRead\n")
+			log.Printf("Err: %v\n", err)
+			log.Print("\n")
+			return err
+		}
+
 	default:
 		//return errors.New("No valid parameters found - address_id")
 		log.Printf("Address_id not informed or not exist.")
