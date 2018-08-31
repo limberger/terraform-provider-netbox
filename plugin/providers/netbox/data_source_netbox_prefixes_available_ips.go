@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/digitalocean/go-netbox/netbox/client/ipam"
 	"github.com/hashicorp/terraform/helper/schema"
@@ -31,7 +32,7 @@ func barePrefixesAvailableIpsSchema() map[string]*schema.Schema {
 			Type: schema.TypeInt,
 		},
 		"address_id": &schema.Schema{
-			Type: schema.TypeInt,
+			Type: schema.TypeString,
 		},
 		"description": &schema.Schema{
 			Type: schema.TypeString,
@@ -40,6 +41,12 @@ func barePrefixesAvailableIpsSchema() map[string]*schema.Schema {
 			Type: schema.TypeInt,
 		},
 		"address": &schema.Schema{
+			Type: schema.TypeString,
+		},
+		"ip": &schema.Schema{
+			Type: schema.TypeString,
+		},
+		"mask": &schema.Schema{
 			Type: schema.TypeString,
 		},
 		"custom_fields": &schema.Schema{
@@ -81,18 +88,30 @@ func resourcePrefixesAvailableIpsSchema() map[string]*schema.Schema {
 		switch k {
 		case "address_id":
 			v.Optional = true
+			v.Computed = true
 		case "prefixes_id":
 			v.Optional = true
+			v.Computed = true
 		case "description":
 			v.Optional = true
 		case "family":
 			v.Optional = true
+			v.Computed = true
 		case "address":
 			v.Optional = true
+			v.Computed = true
+		case "ip":
+			v.Optional = true
+			v.Computed = true
+		case "mask":
+			v.Optional = true
+			v.Computed = true
 		case "custom_fields":
 			v.Optional = true
+			v.Computed = true
 		case "status":
 			v.Optional = true
+			v.Computed = true
 		case "created":
 			v.Optional = true
 
@@ -181,7 +200,10 @@ func resourceNetboxPrefixesAvailableIpsCreate(d *schema.ResourceData, meta inter
 	// log.Printf("[DEBUG] family [%v]\n", i["family"].(int))
 	// d.Set("family", i["family"].(int))
 	log.Println("[DEBUG] address")
+
 	d.Set("address", i["address"].(string))
+	d.Set("mask", strings.Split(i["address"].(string), "/")[1])
+	d.Set("ip", strings.Split(i["address"].(string), "/")[0])
 	d.Set("address_id", strconv.FormatFloat(i["id"].(float64), 'f', -1, 64))
 	log.Println("[DEBUG] description")
 	d.Set("description", i["description"].(string))
@@ -197,9 +219,11 @@ func resourceNetboxPrefixesAvailableIpsRead(d *schema.ResourceData, meta interfa
 	log.Printf("resourceNetboxPrefixesAvailableIpsRead ............ ")
 	switch {
 	// Pega por prefix_id
-	case d.Get("address_id").(int) != 0: // Obrigatório
+	case d.Get("address_id").(string) != "":
 		var parm = ipam.NewIPAMIPAddressesReadParams()
-		parm.SetID(int64(d.Get("prefixes_id").(int)))
+
+		id, _ := strconv.ParseInt(d.Get("address_id").(string), 10, 64)
+		parm.SetID(id)
 		//(&&meta).IPAM.IPAMPrefixesRead(parm,nil)
 
 		c := meta.(*ProviderNetboxClient).client
@@ -207,9 +231,12 @@ func resourceNetboxPrefixesAvailableIpsRead(d *schema.ResourceData, meta interfa
 		log.Printf("- Executado...\n")
 		if err == nil {
 
-			d.SetId(string(out.Payload.ID)) // Sempre setar o ID
-			d.Set("address_id", out.Payload.ID)
+			d.Set("address_id", string(out.Payload.ID))
 			d.Set("address", out.Payload.Address)
+
+			d.Set("mask", strings.Split(*out.Payload.Address, "/")[1])
+			d.Set("ip", strings.Split(*out.Payload.Address, "/")[0])
+
 			log.Printf("Setando Address_id %v\n", out.Payload.ID)
 			d.Set("created", out.Payload.Created)
 			if out.Payload.CustomFields != nil {
@@ -238,7 +265,7 @@ func resourceNetboxPrefixesAvailableIpsRead(d *schema.ResourceData, meta interfa
 			log.Print("\n")
 			return err
 		}
-		// Pega por prefix.vlan.vid
+
 	default:
 		//return errors.New("No valid parameters found - address_id")
 		log.Printf("Address_id not informed or not exist.")
@@ -313,7 +340,7 @@ func resourceNetboxPrefixesAvailableIpsDelete(d *schema.ResourceData, meta inter
 		_, err := c.IPAM.IPAMIPAddressesDelete(parm, nil)
 		log.Printf("- Executado Delete...\n")
 		if err == nil {
-			log.Printf("[DEBUG] Recurso %v deletado\n", d.Get("address_id").(int))
+			log.Printf("[DEBUG] Recurso %v deletado\n", d.Get("address_id").(string))
 		} else {
 			log.Printf("erro na chamada do IPAMIPAddressesDelete\n")
 			log.Printf("Err: %v\n", err)
