@@ -6,7 +6,7 @@ import (
 	// "strconv"
 	"log"
 
-	"github.com/digitalocean/go-netbox/netbox/client/ipam"
+	"github.com/netbox-community/go-netbox/netbox/client/ipam"
 	"github.com/hashicorp/terraform/helper/schema"
 )
 

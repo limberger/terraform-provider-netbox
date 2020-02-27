@@ -39,6 +39,3 @@ func testAccPreCheck(t *testing.T) {
 	}
 }
 
-func testProviderConfigure(d *schema.ResourceData) (interface{}, error) {
-	return nil, nil
-}

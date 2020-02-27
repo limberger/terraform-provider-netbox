@@ -8,9 +8,9 @@ import (
 
 	// "errors"
 
-	"github.com/digitalocean/go-netbox/netbox/client/ipam"
+	"github.com/netbox-community/go-netbox/netbox/client/ipam"
 	"github.com/hashicorp/terraform/helper/schema"
-	// "github.com/digitalocean/go-netbox/netbox/client"
+	// "github.com/netbox-community/go-netbox/netbox/client"
 )
 
 func dataSourceNetboxPrefixes() *schema.Resource {

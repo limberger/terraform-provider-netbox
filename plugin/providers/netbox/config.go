@@ -1,10 +1,13 @@
 package netbox
 
 import (
+	"fmt"
 	"log"
 
-	api "github.com/digitalocean/go-netbox/netbox"
-	"github.com/digitalocean/go-netbox/netbox/client"
+	// api "github.com/netbox-community/go-netbox/netbox"
+	"github.com/go-openapi/strfmt"
+	runtimeclient "github.com/go-openapi/runtime/client"
+	"github.com/netbox-community/go-netbox/netbox/client"
 )
 
 // Config provides the configuration for the NETBOX providerr.
@@ -30,6 +33,15 @@ type ProviderNetboxClient struct {
 //		client *Client
 //}
 
+const authHeaderName = "Authorization"
+const authHeaderFormat = "Token %v"
+
+func NewNetboxWithAPIKey(host string, apiToken string) *client.NetBox {
+	t := runtimeclient.New(host, client.DefaultBasePath, client.DefaultSchemes)
+	t.DefaultAuthentication = runtimeclient.APIKeyAuth(authHeaderName, "header", fmt.Sprintf(authHeaderFormat, apiToken))
+	return client.New(t, strfmt.Default)
+}
+
 func (c *Config) Client() (interface{}, error) {
 	log.Printf("[DEBUG] config.go Client() AppID: %s", c.AppID)
 	log.Printf("[DEBUG] config.go Client() Endpoint: %s", c.Endpoint)
@@ -40,24 +52,25 @@ func (c *Config) Client() (interface{}, error) {
 	log.Printf("[DEBUG] Initializing Netbox controllers")
 	// sess := session.NewSession(cfg)
 	// Create the Client
-	cli := api.NewNetboxWithAPIKey(cfg.Endpoint, cfg.AppID)
+	cli := NewNetboxWithAPIKey(cfg.Endpoint, cfg.AppID)
 
 	// Validate that our connection is okay
 	if err := c.ValidateConnection(cli); err != nil {
-		log.Printf("[DEBUG] config.go Client() Erro")
+		log.Printf("[DEBUG] config.go Client() Error")
 		return nil, err
 	}
 	cs := ProviderNetboxClient{
 		client:        cli,
 		configuration: cfg,
 	}
+	log.Printf("[DEBUG] config.go returning ProviderNetboxClient")
 	return &cs, nil
 }
 
 // ValidateConnection ensures that we can connect to Netbox early, so that we
 // do not fail in the middle of a TF run if it can be prevented.
 func (c *Config) ValidateConnection(sc *client.NetBox) error {
-	log.Printf("[DEBUG] config.go ValidateConnection() validando ")
+	log.Printf("[DEBUG] config.go ValidateConnection() with call to list DCIM Racks ")
 	rs, err := sc.Dcim.DcimRacksList(nil, nil)
 	log.Println(rs)
 	return err

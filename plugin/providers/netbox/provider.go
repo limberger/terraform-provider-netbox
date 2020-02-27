@@ -12,7 +12,6 @@ func init() {
 	descriptions = map[string]string{
 		"app_id":   "The application ID required for API requests",
 		"endpoint": "The full URL (plus path) to the API endpoint",
-		// "timeout":  "Max. wait time should wait for a successful connection to the API",
 	}
 }
 
@@ -35,13 +34,13 @@ func providerSchema() map[string]*schema.Schema {
 		"app_id": &schema.Schema{
 			Type:        schema.TypeString,
 			Optional:    true,
-			Default:     "",
+			DefaultFunc: schema.EnvDefaultFunc("NETBOX_APP_ID", nil),
 			Description: descriptions["key created on netbox"],
 		},
 		"endpoint": &schema.Schema{
 			Type:        schema.TypeString,
 			Optional:    true,
-			Default:     "",
+			DefaultFunc: schema.EnvDefaultFunc("NETBOX_ENDPOINT_ADDR", nil),
 			Description: descriptions["endpoint of netbox (without http:// and / )"],
 		},
 		"timeout": &schema.Schema{
@@ -63,6 +62,7 @@ func providerResources() map[string]*schema.Resource {
 		"netbox_vlans":                  resourceNetboxVlans(),
 		"netbox_prefixes":               resourceNetboxPrefixes(),
 		"netbox_prefixes_available_ips": resourceNetboxPrefixesAvailableIps(),
+		"netbox_pool_prefixes":          resourceNetboxPoolPrefixes(),
 	}
 }
 
@@ -75,8 +75,9 @@ func providerResources() map[string]*schema.Resource {
 
 func providerDataSourcesMap() map[string]*schema.Resource {
 	return map[string]*schema.Resource{
-		"netbox_vlans":    dataSourceNetboxVlans(),
-		"netbox_prefixes": dataSourceNetboxPrefixes(),
+		"netbox_vlans":         dataSourceNetboxVlans(),
+		"netbox_prefixes":      dataSourceNetboxPrefixes(),
+		"netbox_pool_prefixes": dataSourceNetboxPoolPrefixes(),
 	}
 }
 

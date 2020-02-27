@@ -7,9 +7,9 @@ import (
 
 	// "errors"
 
-	"github.com/digitalocean/go-netbox/netbox/client/ipam"
+	"github.com/netbox-community/go-netbox/netbox/client/ipam"
 	"github.com/hashicorp/terraform/helper/schema"
-	// "github.com/digitalocean/go-netbox/netbox/client"
+	// "github.com/netbox-community/go-netbox/netbox/client"
 )
 
 func dataSourceNetboxVlans() *schema.Resource {
@@ -28,7 +28,7 @@ func dataSourceNetboxVlansRead(d *schema.ResourceData, meta interface{}) error {
 	case d.Get("vid").(int) != 0:
 		// func (a *Client) IPAMVlansRead(params *IPAMVlansReadParams, authInfo runtime.ClientAuthInfoWriter) (*IPAMVlansReadOK, error) {
 		log.Printf("Ok... localizando por vid: %v\n", d.Get("vid").(int))
-		vid := float64(d.Get("vid").(int))
+		vid := d.Get("vid").(string) // CMG: This is a guess
 		parm.SetVid(&vid)
 		c := meta.(*ProviderNetboxClient).client
 		//parms = ipam.NewIPAMVlansListParams()

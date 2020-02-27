@@ -2,7 +2,7 @@ package main
 
 import (
 	"github.com/hashicorp/terraform/plugin"
-	"github.com/limberger/terraform-provider-netbox/plugin/providers/netbox"
+	"github.com/cmgreivel/terraform-provider-netbox/plugin/providers/netbox"
 )
 
 func main() {
