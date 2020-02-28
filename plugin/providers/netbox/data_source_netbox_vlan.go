@@ -8,7 +8,7 @@ import (
 	// "errors"
 
 	"github.com/netbox-community/go-netbox/netbox/client/ipam"
-	"github.com/hashicorp/terraform/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 	// "github.com/netbox-community/go-netbox/netbox/client"
 )
 

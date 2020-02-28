@@ -11,7 +11,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/hashicorp/terraform/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 	"github.com/netbox-community/go-netbox/netbox/client/ipam"
 	"github.com/netbox-community/go-netbox/netbox/models"
 )
@@ -26,21 +26,12 @@ func resourceNetboxPoolPrefixes() *schema.Resource {
 	}
 }
 
-// CMG: May need to add vrf
 func resourcePoolPrefixesSchema() map[string]*schema.Schema {
 	return map[string]*schema.Schema{
-		"pool_id": &schema.Schema{
-			Type:     schema.TypeInt,
-			Description: "ID of the pool from which the prefix will be allocated",
-			Optional: true,
-			Computed: true,
-			ForceNew: true,
-		},
 		"pool": &schema.Schema{
 			Type:     schema.TypeString,
 			Description: "CIDR block of the pool from which the prefix will be allocated",
-			Optional: true,
-			Computed: true,
+			Required: true,
 			ForceNew: true,
 		},
 		"prefix_id": &schema.Schema{
@@ -64,8 +55,7 @@ func resourcePoolPrefixesSchema() map[string]*schema.Schema {
 		"tags": &schema.Schema{
 			Type: schema.TypeMap,
 			Description: "Tags applied to the prefix",
-			Optional: true,
-			Computed: true,
+			Required: true,
 		},
 		"ring": &schema.Schema{
 			Type: schema.TypeString,
@@ -76,28 +66,52 @@ func resourcePoolPrefixesSchema() map[string]*schema.Schema {
 	}
 }
 
-func tagMapToList(d *schema.ResourceData) []string {
-	var tags map[string]interface{}
-	var tagList []string
+func isLengthValid(length int) bool {
+	return length >= 18 && length <= 28
+}
 
-	if d.Get("tags").(map[string]interface{}) != nil {
-		tags, _ = d.Get("tags").(map[string]interface{})
-		log.Printf("[DEBUG] Have input tags %v\n", tags)
-		if len(tags) != 0 {
-			// Add tags
-			for key, value := range tags {
-				tagList = append(tagList, fmt.Sprintf("%s=%s", key, value))
+func isPoolValid(pool string) bool {
+	isValid := false
+	validPools := []string{"10.0.0.0/8", "172.16.0.0/12"}
+	for _, p := range validPools {
+		if p == pool {
+			isValid = true
+			break
+		}
+	}
+	return isValid
+}
 
+func tagMapToSlice(tags map[string]interface{}) []string {
+	var tagSlice []string
+
+	log.Printf("[DEBUG] Have input tags %v\n", tags)
+	// Add tags
+	for key, value := range tags {
+		tagSlice = append(tagSlice, fmt.Sprintf("%s=%s", key, value))
+
+	}
+	return tagSlice
+}
+
+func isTagMapValid(tags map[string]interface{}) bool {
+	nameFound := false
+	uniqueFound := false
+	if len(tags) != 0 {
+		for key, _ := range tags {
+			if key == "name" {
+				nameFound = true
+			}
+			if key == "unique" {
+				uniqueFound = true
 			}
 		}
 	}
-	return tagList
+	return nameFound && uniqueFound
 }
 
 func resourceNetboxPoolPrefixesCreate(d *schema.ResourceData, meta interface{}) error {
 
-	poolId := -1
-	pool := ""
 	log.Println("[DEBUG] dataNetboxPoolPrefixesCreate")
 	client := meta.(*ProviderNetboxClient).client
 
@@ -106,6 +120,10 @@ func resourceNetboxPoolPrefixesCreate(d *schema.ResourceData, meta interface{}) 
 		return errors.New("prefix_length not specified")
 	}
 	prefixLength := d.Get("prefix_length").(int)
+	if !isLengthValid(prefixLength) {
+		log.Println("[ERROR] invalid prefix length specified.")
+		return errors.New("prefix_length must be between 18 & 28, inclusive")
+	}
 
 	if d.Get("ring").(string) == "" {
 		log.Println("[ERROR] ring not specified.")
@@ -113,21 +131,29 @@ func resourceNetboxPoolPrefixesCreate(d *schema.ResourceData, meta interface{}) 
 	}
 	ring := d.Get("ring").(string)
 
-	switch {
-	case d.Get("pool_id").(int) != 0:
-		poolId, _ = d.Get("pool_id").(int)
-		log.Printf("[DEBUG] Have poolId %d \n", poolId)
-
-	case d.Get("pool").(string) != "":
-		pool, _ = d.Get("pool").(string)
-		log.Printf("[DEBUG] Have pool %s\n", pool)
-
-	default:
-		log.Println("[ERROR] Pool not specified. Must set pool_id or pool.")
+	if d.Get("pool").(string) == "" {
+		log.Println("[ERROR] pool not specified.")
 		return errors.New("pool not specified")
 	}
+	pool := d.Get("pool").(string)
 
-	taglist := tagMapToList(d)
+	if !isPoolValid(pool) {
+		log.Println("[ERROR] invalid pool specified.")
+		return errors.New("invalid pool specified")
+	}
+
+	if d.Get("tags").(map[string]interface{}) == nil {
+		log.Println("[ERROR] tags not specified.")
+		return errors.New("tags not specified")
+
+	}
+	tags, _ := d.Get("tags").(map[string]interface{})
+	if !isTagMapValid(tags) {
+		log.Println("[ERROR] required tags (name, unique) missing.")
+		return errors.New("required tags (name, unique) missing")
+	}
+
+	tagSlice := tagMapToSlice(tags)
 
 	// Find the ID of the VRF. Having trouble just using the vrf name for some reason.
 	// XXX: ^^^
@@ -137,26 +163,21 @@ func resourceNetboxPoolPrefixesCreate(d *schema.ResourceData, meta interface{}) 
 		return err
 	}
 	if *ringResult.Payload.Count != 1 {
-		log.Printf("Found %d vrfs for ring %s\n", *ringResult.Payload.Count, ring)
-		return errors.New("Too many vrfs for ring")
+		return errors.New(fmt.Sprintf("Found %d vrfs for ring %s\n", *ringResult.Payload.Count, ring))
 	}
 	ringId := strconv.FormatInt(ringResult.Payload.Results[0].ID, 10)
 
-	if poolId == -1 {
-		// We need to find the poolId
-		ispool := "true"
-		listParm := ipam.NewIPAMPrefixesListParams().WithPrefix(&pool).WithIsPool(&ispool).WithVrfID(&ringId)
-		found, err := client.IPAM.IPAMPrefixesList(listParm, nil)
-		if err != nil {
-			return err
-		}
-		if *found.Payload.Count != 1 {
-			errString := fmt.Sprintf("Found %d pools for prefix %s\n", *found.Payload.Count, pool)
-			return errors.New(errString)
-		}
-		poolId = int(found.Payload.Results[0].ID)
-		d.Set("pool_id", found.Payload.Results[0].ID)
+	// We need to find the poolId
+	ispool := "true"
+	listParm := ipam.NewIPAMPrefixesListParams().WithPrefix(&pool).WithIsPool(&ispool).WithVrfID(&ringId)
+	found, err := client.IPAM.IPAMPrefixesList(listParm, nil)
+	if err != nil {
+		return err
 	}
+	if *found.Payload.Count != 1 {
+		return errors.New(fmt.Sprintf("Found %d pools for prefix %s\n", *found.Payload.Count, pool))
+	}
+	poolId := int(found.Payload.Results[0].ID)
 
 	// We cannot use go-netbox (https://github.com/netbox-community/go-netbox) to allocate
 	// the prefix, because go-netbox is generated from the Netbox OpenApi documentation.
@@ -171,8 +192,8 @@ func resourceNetboxPoolPrefixesCreate(d *schema.ResourceData, meta interface{}) 
 	url := "http://" + config.Endpoint + "/api/ipam/prefixes/" + strconv.Itoa(poolId) + "/available-prefixes/"
 
 	jsonData := map[string] interface{}{"prefix_length": prefixLength}
-	if len(taglist) != 0 {
-		jsonData["tags"] = taglist
+	if len(tagSlice) != 0 {
+		jsonData["tags"] = tagSlice
 	}
 	jsonValue, _ := json.Marshal(jsonData)
 	log.Printf("[DEBUG] JSON: [%v]\n", string(jsonValue))
@@ -234,7 +255,7 @@ func resourceNetboxPoolPrefixesRead(d *schema.ResourceData, meta interface{}) er
 	if err != nil {
 		return errors.New("Could not convert ID to int")
 	}
-	var parm = ipam.NewIPAMPrefixesReadParams().WithID(id)
+	parm := ipam.NewIPAMPrefixesReadParams().WithID(id)
 	result, err := client.IPAM.IPAMPrefixesRead(parm, nil)
 	if err != nil {
 		d.SetId("")
@@ -262,8 +283,14 @@ func resourceNetboxPoolPrefixesUpdate(d *schema.ResourceData, meta interface{}) 
 	// We can only change the set of tags without having to recreate the entire
 	// perfix. All other parameter changes require the prefix to be recreated.
 	if d.HasChange("tags") {
-		tagList := tagMapToList(d)
-		if len(tagList) != 0 {
+		tags, _ := d.Get("tags").(map[string]interface{})
+		if !isTagMapValid(tags) {
+			log.Println("[ERROR] required tags missing. name and unique are required.")
+			return errors.New("required tags missing. name and unique are required.")
+		}
+
+		tagSlice := tagMapToSlice(tags)
+		if len(tagSlice) != 0 {
 			if d.Id() == "" {
 				return errors.New("Id must be provided")
 			}
@@ -277,7 +304,7 @@ func resourceNetboxPoolPrefixesUpdate(d *schema.ResourceData, meta interface{}) 
 			}
 			client := meta.(*ProviderNetboxClient).client
 			// Set the new tags in the data to send with the update
-			data := models.WritablePrefix{ Prefix: &prefixString, Tags: tagList }
+			data := models.WritablePrefix{ Prefix: &prefixString, Tags: tagSlice }
 			updateParams := ipam.NewIPAMPrefixesUpdateParams().WithID(id).WithData(&data)
 			_, err = client.IPAM.IPAMPrefixesUpdate(updateParams, nil)
 			if err != nil {
