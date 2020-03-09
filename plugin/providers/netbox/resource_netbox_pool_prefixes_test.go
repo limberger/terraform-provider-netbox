@@ -14,8 +14,8 @@ import (
 
 const testAccResourceNetboxPoolPrefixesConfig = `
 resource "netbox_pool_prefixes" "test_prefix" {
-  ring          = "test"
-  pool          = "10.0.0.0/8"
+  environment   = "test"
+  pool          = "100.64.0.0/10"
   prefix_length = 28
   tags = {
     name   = "some_name"
@@ -26,8 +26,8 @@ resource "netbox_pool_prefixes" "test_prefix" {
 
 const testAccResourceNetboxPoolPrefixesEditTags = `
 resource "netbox_pool_prefixes" "test_prefix" {
-  ring          = "test"
-  pool          = "10.0.0.0/8"
+  environment   = "test"
+  pool          = "100.64.0.0/10"
   prefix_length = 28
   tags = {
     name   = "new_name"
@@ -36,10 +36,10 @@ resource "netbox_pool_prefixes" "test_prefix" {
 }
 `
 
-const testAccResourceNetboxPoolPrefixesEditRing = `
+const testAccResourceNetboxPoolPrefixesEditEnvironment = `
 resource "netbox_pool_prefixes" "test_prefix" {
-  ring          = "dev"
-  pool          = "10.0.0.0/8"
+  environment   = "dev"
+  pool          = "100.64.0.0/10"
   prefix_length = 28
   tags = {
     name   = "new_name"
@@ -50,7 +50,7 @@ resource "netbox_pool_prefixes" "test_prefix" {
 
 const testAccResourceNetboxPoolPrefixesEditPool = `
 resource "netbox_pool_prefixes" "test_prefix" {
-  ring          = "dev"
+  environment   = "dev"
   pool          = "172.16.0.0/12"
   prefix_length = 28
   tags = {
@@ -62,7 +62,7 @@ resource "netbox_pool_prefixes" "test_prefix" {
 
 const testAccResourceNetboxPoolPrefixesEditLength = `
 resource "netbox_pool_prefixes" "test_prefix" {
-  ring          = "dev"
+  environment   = "dev"
   pool          = "172.16.0.0/12"
   prefix_length = 26
   tags = {
@@ -74,7 +74,7 @@ resource "netbox_pool_prefixes" "test_prefix" {
 // This config has no order significance
 const testAccResourceNetboxPoolPrefixesOtherPool = `
 resource "netbox_pool_prefixes" "other_pool" {
-  ring          = "test"
+  environment   = "test"
   pool          = "172.16.0.0/12"
   prefix_length = 28
   tags = {
@@ -210,7 +210,7 @@ func TestAccResourceNetboxPoolPrefixes_edit(t *testing.T) {
                 ),
             },
             {
-                Config: testAccResourceNetboxPoolPrefixesEditRing,
+                Config: testAccResourceNetboxPoolPrefixesEditEnvironment,
                 Check: resource.ComposeTestCheckFunc(
                     testAccCheckPrefixExists("netbox_pool_prefixes.test_prefix", &prefix1),
 					testAccCheckPrefixRecreated(&prefix2, &prefix1),
@@ -234,10 +234,10 @@ func TestAccResourceNetboxPoolPrefixes_edit(t *testing.T) {
 	})
 }
 
-const testAccResourceNetboxPoolPrefixesBadRing = `
+const testAccResourceNetboxPoolPrefixesBadEnvironment = `
 resource "netbox_pool_prefixes" "test_prefix" {
-  ring          = "no-such-ring"
-  pool          = "10.0.0.0/8"
+  environment   = "no-such-environment"
+  pool          = "100.64.0.0/10"
   prefix_length = 28
   tags = {
     name   = "some_name"
@@ -246,16 +246,16 @@ resource "netbox_pool_prefixes" "test_prefix" {
 }
 `
 
-func TestAccResourceNetboxPoolPrefixes_ringErrors(t *testing.T) {
-	ringError, _ := regexp.Compile("ring")
+func TestAccResourceNetboxPoolPrefixes_environmentErrors(t *testing.T) {
+	environmentError, _ := regexp.Compile("environment")
 
 	resource.Test(t, resource.TestCase {
 		PreCheck: func() { testAccPreCheck(t) },
 		Providers: testAccProviders,
 		Steps: []resource.TestStep {
 			{
-                Config: testAccResourceNetboxPoolPrefixesBadRing,
-				ExpectError: ringError,
+                Config: testAccResourceNetboxPoolPrefixesBadEnvironment,
+				ExpectError: environmentError,
             },
 		},
 	})
@@ -263,7 +263,7 @@ func TestAccResourceNetboxPoolPrefixes_ringErrors(t *testing.T) {
 
 const testAccResourceNetboxPoolPrefixesBadPool = `
 resource "netbox_pool_prefixes" "test_prefix" {
-  ring          = "dev"
+  environment   = "dev"
   pool          = "10.2.0.0/8"
   prefix_length = 28
   tags = {
@@ -290,8 +290,8 @@ func TestAccResourceNetboxPoolPrefixes_poolErrors(t *testing.T) {
 
 const testAccResourceNetboxPoolPrefixesLengthTooBig = `
 resource "netbox_pool_prefixes" "test_prefix" {
-  ring          = "dev"
-  pool          = "10.0.0.0/8"
+  environment   = "dev"
+  pool          = "100.64.0.0/10"
   prefix_length = 16
   tags = {
     name   = "some_name"
@@ -302,8 +302,8 @@ resource "netbox_pool_prefixes" "test_prefix" {
 
 const testAccResourceNetboxPoolPrefixesLengthTooSmall = `
 resource "netbox_pool_prefixes" "test_prefix" {
-  ring          = "dev"
-  pool          = "10.0.0.0/8"
+  environment   = "dev"
+  pool          = "100.64.0.0/10"
   prefix_length = -7
   tags = {
     name   = "some_name"
@@ -333,8 +333,8 @@ func TestAccResourceNetboxPoolPrefixes_lengthErrors(t *testing.T) {
 
 const testAccResourceNetboxPoolPrefixesNoNameTag = `
 resource "netbox_pool_prefixes" "test_prefix" {
-  ring          = "dev"
-  pool          = "10.0.0.0/8"
+  environment   = "dev"
+  pool          = "100.64.0.0/10"
   prefix_length = 26
   tags = {
     unique = "some_unique_string"
@@ -344,8 +344,8 @@ resource "netbox_pool_prefixes" "test_prefix" {
 
 const testAccResourceNetboxPoolPrefixesNoUniqueTag = `
 resource "netbox_pool_prefixes" "test_prefix" {
-  ring          = "dev"
-  pool          = "10.0.0.0/8"
+  environment   = "dev"
+  pool          = "100.64.0.0/10"
   prefix_length = 26
   tags = {
     name = "I have a name"

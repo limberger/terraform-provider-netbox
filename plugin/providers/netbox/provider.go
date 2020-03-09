@@ -52,33 +52,27 @@ func providerSchema() map[string]*schema.Schema {
 }
 
 // List of supported resources and their configuration fields.
-// Here we define da linked list of all the resources that we want to
+// Here we define the linked list of all the resources that we want to
 // support in our provider. As an example, if you were to write an AWS provider
 // which supported resources like ec2 instances, elastic balancers and things of that sort
 // then this would be the place to declare them.
 // More info here https://github.com/hashicorp/terraform/blob/v0.6.6/helper/schema/resource.go#L17-L81
 func providerResources() map[string]*schema.Resource {
 	return map[string]*schema.Resource{
-		"netbox_vlans":                  resourceNetboxVlans(),
-		"netbox_prefixes":               resourceNetboxPrefixes(),
-		"netbox_prefixes_available_ips": resourceNetboxPrefixesAvailableIps(),
 		"netbox_pool_prefixes":          resourceNetboxPoolPrefixes(),
 	}
 }
 
-// List of supported resources and their configuration fields.
-// Here we define da linked list of all the resources that we want to
+// List of supported data sources and their configuration fields.
+// Here we define the linked list of all the resources that we want to
 // support in our provider. As an example, if you were to write an AWS provider
 // which supported resources like ec2 instances, elastic balancers and things of that sort
 // then this would be the place to declare them.
 // More info here https://github.com/hashicorp/terraform/blob/v0.6.6/helper/schema/resource.go#L17-L81
 
+// No data sources supported
 func providerDataSourcesMap() map[string]*schema.Resource {
-	return map[string]*schema.Resource{
-		"netbox_vlans":         dataSourceNetboxVlans(),
-		"netbox_prefixes":      dataSourceNetboxPrefixes(),
-		"netbox_pool_prefixes": dataSourceNetboxPoolPrefixes(),
-	}
+	return map[string]*schema.Resource{}
 }
 
 // This is the function used to fetch the configuration params given

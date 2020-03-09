@@ -57,9 +57,9 @@ func resourcePoolPrefixesSchema() map[string]*schema.Schema {
 			Description: "Tags applied to the prefix",
 			Required: true,
 		},
-		"ring": &schema.Schema{
+		"environment": &schema.Schema{
 			Type: schema.TypeString,
-			Description: "The ring the prefix belongs to",
+			Description: "The environment the prefix belongs to",
 			Required: true,
 			ForceNew: true,
 		},
@@ -72,7 +72,7 @@ func isLengthValid(length int) bool {
 
 func isPoolValid(pool string) bool {
 	isValid := false
-	validPools := []string{"10.0.0.0/8", "172.16.0.0/12"}
+	validPools := []string{"10.0.0.0/8", "172.16.0.0/12", "100.64.0.0/10"}
 	for _, p := range validPools {
 		if p == pool {
 			isValid = true
@@ -125,11 +125,11 @@ func resourceNetboxPoolPrefixesCreate(d *schema.ResourceData, meta interface{}) 
 		return errors.New("prefix_length must be between 18 & 28, inclusive")
 	}
 
-	if d.Get("ring").(string) == "" {
-		log.Println("[ERROR] ring not specified.")
-		return errors.New("ring not specified")
+	if d.Get("environment").(string) == "" {
+		log.Println("[ERROR] environment not specified.")
+		return errors.New("environment not specified")
 	}
-	ring := d.Get("ring").(string)
+	environment := d.Get("environment").(string)
 
 	if d.Get("pool").(string) == "" {
 		log.Println("[ERROR] pool not specified.")
@@ -157,19 +157,19 @@ func resourceNetboxPoolPrefixesCreate(d *schema.ResourceData, meta interface{}) 
 
 	// Find the ID of the VRF. Having trouble just using the vrf name for some reason.
 	// XXX: ^^^
-	ringParm := ipam.NewIPAMVrfsListParams().WithName(&ring)
-	ringResult, err := client.IPAM.IPAMVrfsList(ringParm, nil)
+	environmentParm := ipam.NewIPAMVrfsListParams().WithName(&environment)
+	environmentResult, err := client.IPAM.IPAMVrfsList(environmentParm, nil)
 	if err != nil {
 		return err
 	}
-	if *ringResult.Payload.Count != 1 {
-		return errors.New(fmt.Sprintf("Found %d vrfs for ring %s\n", *ringResult.Payload.Count, ring))
+	if *environmentResult.Payload.Count != 1 {
+		return errors.New(fmt.Sprintf("Found %d vrfs for environment %s\n", *environmentResult.Payload.Count, environment))
 	}
-	ringId := strconv.FormatInt(ringResult.Payload.Results[0].ID, 10)
+	environmentId := strconv.FormatInt(environmentResult.Payload.Results[0].ID, 10)
 
 	// We need to find the poolId
 	ispool := "true"
-	listParm := ipam.NewIPAMPrefixesListParams().WithPrefix(&pool).WithIsPool(&ispool).WithVrfID(&ringId)
+	listParm := ipam.NewIPAMPrefixesListParams().WithPrefix(&pool).WithIsPool(&ispool).WithVrfID(&environmentId)
 	found, err := client.IPAM.IPAMPrefixesList(listParm, nil)
 	if err != nil {
 		return err
@@ -263,7 +263,7 @@ func resourceNetboxPoolPrefixesRead(d *schema.ResourceData, meta interface{}) er
 		prefix := result.Payload
 		d.Set("prefix", prefix.Prefix)
 		d.Set("prefix_id", prefix.ID)
-		d.Set("ring", prefix.Vrf.Name)
+		d.Set("environment", prefix.Vrf.Name)
 		tagMap := make(map[string]string)
 		for _, tagPair := range prefix.Tags {
 			parts := strings.Split(tagPair, "=")
