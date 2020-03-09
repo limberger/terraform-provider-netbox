@@ -1,29 +1,26 @@
 # Terraform Provider Plugin for Netbox
 
-This repository is a fork of a generic [Terraform provider for NetBox][6].
+This repository is a fork of a generic [Terraform provider for NetBox]
+[https://github.com/limberger/terraform-provider-netbox/releases].
 
 It has changes for a specific use case where prefixes are allocated from select IP ranges.
 Please see the code for details.
 
-Access some plugin documentation [here][4] and [here][5]
-[1]: https://www.terraform.io/
-[2]: https://github.com/netbox-community/netbox
-[3]: https://github.com/netbox-community/go-netbox
-[4]: https://pkg.go.dev/github.com/hashicorp/terraform-plugin-sdk
+Access some plugin documentation [here][https://pkg.go.dev/github.com/hashicorp/terraform-plugin-sdk]
+and [here][https://www.terraform.io/docs/plugins/basics.html]
 
 ## About Netbox
 
-[Netbox][2] is an open source IP address management system written in Python. Through our Go integration
-provided by [Go-Netbox][3], we will integrate it into [Terraform][1], allowing for the management of
-prefix pools.
+[Netbox][https://github.com/netbox-community/netbox] is an open source IP address management
+system written in Python. Through our Go integration provided by 
+[Go-Netbox][https://github.com/netbox-community/go-netbox], we will integrate it into 
+[Terraform][https://www.terraform.io/], allowing for the management of prefix pools.
 
 
 ## Installing
 
-See the [Plugin Basics][5] page of the Terraform docs to see how to drop this into your config.
-
-[5]: https://www.terraform.io/docs/plugins/basics.html
-[6]: https://github.com/limberger/terraform-provider-netbox/releases
+See the [Plugin Basics][https://www.terraform.io/docs/plugins/basics.html] page of the Terraform
+docs to see how to drop this into your config.
 
 ## Usage
 
