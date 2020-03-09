@@ -1,33 +1,44 @@
 # Terraform Provider Plugin for Netbox
 
 This repository is a fork of a generic [Terraform provider for NetBox]
-[https://github.com/limberger/terraform-provider-netbox/releases].
+(https://github.com/limberger/terraform-provider-netbox/releases).
 
 It has changes for a specific use case where prefixes are allocated from select IP ranges.
 Please see the code for details.
 
-Access some plugin documentation [here][https://pkg.go.dev/github.com/hashicorp/terraform-plugin-sdk]
-and [here][https://www.terraform.io/docs/plugins/basics.html]
+Access some plugin documentation [here](https://pkg.go.dev/github.com/hashicorp/terraform-plugin-sdk)
+and [here](https://www.terraform.io/docs/plugins/basics.html)
 
 ## About Netbox
 
-[Netbox][https://github.com/netbox-community/netbox] is an open source IP address management
+[Netbox](https://github.com/netbox-community/netbox) is an open source IP address management
 system written in Python. Through our Go integration provided by 
-[Go-Netbox][https://github.com/netbox-community/go-netbox], we will integrate it into 
-[Terraform][https://www.terraform.io/], allowing for the management of prefix pools.
+[Go-Netbox](https://github.com/netbox-community/go-netbox), we will integrate it into 
+[Terraform](https://www.terraform.io/), allowing for the management of prefix pools.
 
 
 ## Installing
 
-See the [Plugin Basics][https://www.terraform.io/docs/plugins/basics.html] page of the Terraform
+See the [Plugin Basics](https://www.terraform.io/docs/plugins/basics.html) page of the Terraform
 docs to see how to drop this into your config.
 
 ## Usage
 
 ### Provider Input
 Credentials can be supplied via configuration variables to the `netbox`
-provider instance, or via environment variables. These are documented in the
-next section.
+provider instance, or via environment variables.
+
+The options for the plugin are as follows:
+
+ * `app_id` - The API application ID, configured in the NETBOX  panel. This
+   application ID should have read/write access if you are planning to use the
+   resources, but read-only access should be sufficient if you are only using
+   the data sources. Caan also be supplied by the `NETBOX_APP_ID` environment
+   variable.
+ * `endpoint` - The server, protocol and port to access the NETBOX API, such as
+   `https://netbox.example.com/api`. Can also be supplied by the
+   `NETBOX_ENDPOINT_ADDR` environment variable.
+
 ```
 provider "netbox" {
   app_id = "0123456789abcdef0123456789abcdef01234567"
@@ -90,19 +101,6 @@ prefix = {
   }
 }
 ```
-
-### Plugin Options
-The options for the plugin are as follows:
-
- * `app_id` - The API application ID, configured in the NETBOX  panel. This
-   application ID should have read/write access if you are planning to use the
-   resources, but read-only access should be sufficient if you are only using
-   the data sources. Caan also be supplied by the `NETBOX_APP_ID` environment
-   variable.
- * `endpoint` - The server, protocol and port to access the NETBOX API, such as
-   `https://netbox.example.com/api`. Can also be supplied by the
-   `NETBOX_ENDPOINT_ADDR` environment variable.
-
 
 ```
 Copyright 2018 BB, Inc.
