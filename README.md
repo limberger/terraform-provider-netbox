@@ -1,66 +1,100 @@
 # Terraform Provider Plugin for Netbox
 
-This repository holds a external plugin for a [Terraform][1] provider to manage
-resources within [Netbox][2], an open source IP address management system. Using
-the go API client for DigitalOcean's NetBox IPAM and DCIM service [Go-Netbox][3].
+This repository is a fork of a generic [Terraform provider for NetBox][6].
 
-Good example: [Example][4]
+It has changes for a specific use case where prefixes are allocated from select IP ranges.
+Please see the code for details.
 
+Access some plugin documentation [here][4] and [here][5]
 [1]: https://www.terraform.io/
-[2]: https://github.com/digitalocean/netbox
-[3]: https://github.com/digitalocean/go-netbox
-[4]: http://techblog.d2-si.eu/2018/02/23/my-first-terraform-provider.html
+[2]: https://github.com/netbox-community/netbox
+[3]: https://github.com/netbox-community/go-netbox
+[4]: https://pkg.go.dev/github.com/hashicorp/terraform-plugin-sdk
 
 ## About Netbox
 
-[Netbox][2] is an open source IP address management system written in Python. Through our Go integration provided by [Go-Netbox[3]], we will integrate it into
-[Terraform][1], allowing for the management and lookup of sections, VLANs, subnets and IP addresses, entirely withing Terraform.
+[Netbox][2] is an open source IP address management system written in Python. Through our Go integration
+provided by [Go-Netbox][3], we will integrate it into [Terraform][1], allowing for the management of
+prefix pools.
 
 
 ## Installing
 
-See the [Plugin Basics][5] page of the Terraform docs to see how to plunk this
-into your config. Check the [releases page][6] of this repo to get releases for
-Linux, OS X, and Windows.
+See the [Plugin Basics][5] page of the Terraform docs to see how to drop this into your config.
 
 [5]: https://www.terraform.io/docs/plugins/basics.html
 [6]: https://github.com/limberger/terraform-provider-netbox/releases
 
 ## Usage
 
-After installation, to use the plugin, simply use any of its resources or data
-sources (such as `netbox_prefixes`, `netbox_vlans` or `netbox_prefixes_available_ips` in a Terraform
-configuration.
-
+### Provider Input
 Credentials can be supplied via configuration variables to the `netbox`
 provider instance, or via environment variables. These are documented in the
 next section.
-
-You can see the following example below for a simple usage example that reserves
-the first available IP address in a subnet. This address could then be passed
-along to the configuration for a VM, say, for example, a
-[`vsphere_virtual_machine`][7] resource.
-
-[7]: https://www.terraform.io/docs/providers/vsphere/r/virtual_machine.html
-
 ```
 provider "netbox" {
   app_id = "0123456789abcdef0123456789abcdef01234567"
   endpoint = "0.0.0.0:32768"
 }
+```
 
-data "netbox_prefixes" "prefixes" {
-  prefixes_id = 1
+### Resource netbox_pool_prefixes 
+After installation, to use the plugin, simply use the resource `netbox_pool_prefixes` in
+a Terraform configuration. 
+#### Input
+The input parameters to the resource are:
+| Name          | Type        | Description                                                                                              | Example                                            |
+|---------------|-------------|----------------------------------------------------------------------------------------------------------|----------------------------------------------------|
+| environment   | string      | The deployment environment (dev, test, staging, production)                                              | "dev"                                              |
+| pool          | string      | The IP range to allocate from. Currently only 172.16.0.0/12, 100.64.0.0/10, and 10.0.0.0/8 are supported | "172.16.0.0/12"                                    |
+| prefix_length | number      | Length of the prefix to allocate. Must be between 18 and 28, inclusive.                                  | 28                                                 |
+| tags          | map(string) | Map with strings as values. Required keys are "name" and "unique". Others may be included.               | `{ name = "prod_name", unique = "unique_string" }` |
+
+```
+resource netbox_pool_prefixes new {
+  environment   = "dev"
+  pool          = "172.16.0.0/12"
+  prefix_length = 28
+  tags = {
+    name   = "Some_alias"
+    unique = "new_unique_string"
+  }
 }
+```
 
-resource "netbox_prefixes_available_ips" "next_address" {
-	prefixes_id = "${data.netbox_prefixes.prefixes.prefixes_id}"
-	description = "IP requisitado via Terraform 20180827"
+#### Output
+The output from the resource is a single object called prefix with the following attributes:
+| Name          | Type        | Description                                                                       | Example                                            |
+|---------------|-------------|-----------------------------------------------------------------------------------|----------------------------------------------------|
+| environment   | string      | The deployment environment specified at input.                                    | "dev"                                              |
+| pool          | string      | The pool specified at input.                                                      | "172.16.0.0/12"                                    |
+| id            | string      | The Terraform ID of the prefix resource. Identical to prefix_id, but as a string. | "343"                                              |
+| prefix        | string      | The prefix allocated from the specified pool.                                     | "172.16.0.16/28"                                   |
+| prefix_id     | number      | The ID of the prefix allocated from the specified pool.                           | 343                                                |
+| prefix_length | number      | Length of the prefix to allocate. Must be between 18 and 28, inclusive.           | 28                                                 |
+| tags          | map(string) | The tags specified at input.                                                      | `{ name = "prod_name", unique = "unique_string" }` |
+
+
+```
+output prefix { value = netbox_pool_prefixes.new }
+```
+
+```
+prefix = {
+  "environment" = "dev"
+  "id" = "343"
+  "pool" = "172.16.0.0/12"
+  "prefix" = "172.16.0.16/28"
+  "prefix_id" = 343
+  "prefix_length" = 28
+  "tags" = {
+    "name" = "prod_name"
+    "unique" = "unique_string"
+  }
 }
 ```
 
 ### Plugin Options
-
 The options for the plugin are as follows:
 
  * `app_id` - The API application ID, configured in the NETBOX  panel. This
@@ -71,106 +105,6 @@ The options for the plugin are as follows:
  * `endpoint` - The server, protocol and port to access the NETBOX API, such as
    `https://netbox.example.com/api`. Can also be supplied by the
    `NETBOX_ENDPOINT_ADDR` environment variable.
-
-### Data Sources
-
-The following data sources are supplied by this plugin:
-
-#### The `netbox_prefixes` Data Source
-
-The `netbox_prefixes` cadastred on netbox
-
-**Example:**
-
-```
-data "netbox_prefixes" "prefixes" {
-  prefixes_id = 1
-}
-```
-
-**Example With `description`:**
-
-```
-data "netbox_prefixes" "prefixes" {
-  prefixes_id = 1
-}
-
-output "prefix_description" {
-  value = "${data.netbox_prefixes.prefixes.description}"
-}
-```
-
-**Example With `vlan id - vid`:**
-
-```
-data "netbox_prefix" "search_by_vid" {
-  vlan = {
-    vid = 16
-  }
-}
-
-output "vlan_description" {
-  value = "${data.netbox_prefixes.search_by_vid.name}"
-}
-```
-
-##### Argument Reference
-
-The data source takes the following parameters:
-
- * `address_id` - The ID of the IP address in the NETBOX database.
- * `description` - The description of the IP address. `subnet_id` is required
-   when using this field.
-
-⚠️  **NOTE:** `description`, `hostname`, and `custom_field_filter` fields return
-the first match found without any warnings.
-
-⚠️  **NOTE:** An empty or unspecified `custom_field_filter` value is the
-equivalent to a regular expression that matches everything, and hence will
-return the first address it sees in the subnet.
-
-Arguments are processed in the following order of precedence:
-
- * `address_id`
- * `ip_address`
- * `subnet_id`, and either one of `description`, `hostname`, or
-   `custom_field_filter`
-
-##### Attribute Reference
-
-The following attributes are exported:
-
- * `description` - The description provided to this IP address.
-
-
-#### The `netbox_vlans` Data Source
-
-The `netbox_vlans` data source allows you to search for vlans_by_id
-
-**Example:**
-
-```
-data "netbox_vlans" "search_by_vid" {
-  vid = 16
-}
-
-output "vlans_description" {
-  value = "${data.netbox_vlans.search_by_vid.description}"
-}
-```
-
-```
-data "netbox_vlans" "search_by_name" {
-  name = "Vlan16"
-}
-
-output "vlans_description" {
-  value = "${data.netbox_vlans.search_by_name.description}"
-}
-```
-
-#### End
-
 
 
 ```
