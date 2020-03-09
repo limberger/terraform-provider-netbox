@@ -1,7 +1,6 @@
 # Terraform Provider Plugin for Netbox
 
-This repository is a fork of a generic [Terraform provider for NetBox]
-(https://github.com/limberger/terraform-provider-netbox/releases).
+This repository is a fork of a generic [Terraform provider for NetBox](https://github.com/limberger/terraform-provider-netbox/releases).
 
 It has changes for a specific use case where prefixes are allocated from select IP ranges.
 Please see the code for details.
