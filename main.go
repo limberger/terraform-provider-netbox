@@ -1,8 +1,8 @@
 package main
 
 import (
-	"github.com/hashicorp/terraform/plugin"
-	"github.com/limberger/terraform-provider-netbox/plugin/providers/netbox"
+	"github.com/hashicorp/terraform-plugin-sdk/plugin"
+	"github.com/cmgreivel/terraform-provider-netbox/netbox"
 )
 
 func main() {
