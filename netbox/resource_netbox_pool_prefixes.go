@@ -1,3 +1,6 @@
+// Package netbox provides access to NetBox services.
+// The only resource in this version is a custom one to allow allocating prefixes
+// from a specified range of IP supernets, referred to as pools, in specified VRFs.
 package netbox
 
 import (
@@ -66,10 +69,12 @@ func resourcePoolPrefixesSchema() map[string]*schema.Schema {
 	}
 }
 
+// isLengthValid checks that the requested prefix lengths falls in the specified bounds.
 func isLengthValid(length int) bool {
 	return length >= 18 && length <= 28
 }
 
+// isPoolValid checks that the requested prefix pool is one that we support.
 func isPoolValid(pool string) bool {
 	isValid := false
 	validPools := []string{"10.0.0.0/8", "172.16.0.0/12", "100.64.0.0/10"}
@@ -82,6 +87,9 @@ func isPoolValid(pool string) bool {
 	return isValid
 }
 
+// tagMapToSlice converts the input tags, represented as a map, to a slice of strings,
+// which is the way that NetBox handles them. A map element like tag1: "value1" will
+// be converted to the tag string "tag1=value1".
 func tagMapToSlice(tags map[string]interface{}) []string {
 	var tagSlice []string
 
@@ -94,6 +102,22 @@ func tagMapToSlice(tags map[string]interface{}) []string {
 	return tagSlice
 }
 
+// tagSliceToMap converts the NetBox representation of tags, a slice of strings,
+// into a map. Only tags of the form 'key=value' are represented in the map version.
+func tagSliceToMap(tagSlice []string) map[string]string {
+	tagMap := make(map[string]string)
+	for _, tagPair := range tagSlice {
+		parts := strings.Split(tagPair, "=")
+		// Only process tags that are of the pattern key=value
+		if len(parts) == 2 {
+			tagMap[parts[0]] = parts[1]
+		}
+	}
+	return tagMap
+}
+
+// isTagMapValid verifies that the required tags name and unique are included.
+// Other tags may be added as well.
 func isTagMapValid(tags map[string]interface{}) bool {
 	nameFound := false
 	uniqueFound := false
@@ -110,31 +134,49 @@ func isTagMapValid(tags map[string]interface{}) bool {
 	return nameFound && uniqueFound
 }
 
+// verifyCreateInput checks that the necessary elements for allocating a prefix are
+// specified.
+func verifyCreateInput(d *schema.ResourceData) error {
+	if d.Get("prefix_length").(int) == 0 {
+		log.Println("[ERROR] prefix_length not specified.")
+		return errors.New("prefix_length not specified")
+	}
+	if d.Get("environment").(string) == "" {
+		log.Println("[ERROR] environment not specified.")
+		return errors.New("environment not specified")
+	}
+	if d.Get("pool").(string) == "" {
+		log.Println("[ERROR] pool not specified.")
+		return errors.New("pool not specified")
+	}
+	return nil
+}
+
+// extractInputId is used when accessing an already-existing prefix, and if the ID
+// matches expectations will return it.
+func extractInputId(d *schema.ResourceData) (int64, error) {
+	if d.Id() == "" {
+		return -1, errors.New("Id must be provided")
+	}
+	return strconv.ParseInt(d.Id(), 10, 64)
+}
+
+// resourceNetboxPoolPrefixesCreate is invoked when a new prefix will be allocated.
 func resourceNetboxPoolPrefixesCreate(d *schema.ResourceData, meta interface{}) error {
 
 	log.Println("[DEBUG] dataNetboxPoolPrefixesCreate")
 	client := meta.(*ProviderNetboxClient).client
 
-	if d.Get("prefix_length").(int) == 0 {
-		log.Println("[ERROR] prefix_length not specified.")
-		return errors.New("prefix_length not specified")
+	err := verifyCreateInput(d)
+	if err != nil {
+		return err
 	}
 	prefixLength := d.Get("prefix_length").(int)
 	if !isLengthValid(prefixLength) {
 		log.Println("[ERROR] invalid prefix length specified.")
 		return errors.New("prefix_length must be between 18 & 28, inclusive")
 	}
-
-	if d.Get("environment").(string) == "" {
-		log.Println("[ERROR] environment not specified.")
-		return errors.New("environment not specified")
-	}
 	environment := d.Get("environment").(string)
-
-	if d.Get("pool").(string) == "" {
-		log.Println("[ERROR] pool not specified.")
-		return errors.New("pool not specified")
-	}
 	pool := d.Get("pool").(string)
 
 	if !isPoolValid(pool) {
@@ -244,16 +286,14 @@ func resourceNetboxPoolPrefixesCreate(d *schema.ResourceData, meta interface{}) 
 	return nil
 }
 
+// resourceNetboxPoolPrefixesRead is invoked when an existing prefix is being read.
 func resourceNetboxPoolPrefixesRead(d *schema.ResourceData, meta interface{}) error {
 	log.Printf("[DEBUG] resourceNetboxPoolPrefixesRead ............ ")
 	client := meta.(*ProviderNetboxClient).client
 
-	if d.Id() == "" {
-		return errors.New("Id must be provided")
-	}
-	id, err := strconv.ParseInt(d.Id(), 10, 64)
+	id, err := extractInputId(d)
 	if err != nil {
-		return errors.New("Could not convert ID to int")
+		return err
 	}
 	parm := ipam.NewIPAMPrefixesReadParams().WithID(id)
 	result, err := client.IPAM.IPAMPrefixesRead(parm, nil)
@@ -264,19 +304,14 @@ func resourceNetboxPoolPrefixesRead(d *schema.ResourceData, meta interface{}) er
 		d.Set("prefix", prefix.Prefix)
 		d.Set("prefix_id", prefix.ID)
 		d.Set("environment", prefix.Vrf.Name)
-		tagMap := make(map[string]string)
-		for _, tagPair := range prefix.Tags {
-			parts := strings.Split(tagPair, "=")
-			// Only process tags that are of the pattern key=value
-			if len(parts) == 2 {
-				tagMap[parts[0]] = parts[1]
-			}
-		}
-		d.Set("tags", tagMap)
+		d.Set("tags", tagSliceToMap(prefix.Tags))
 	}
 	return nil
 }
 
+// resourceNetboxPoolPrefixesUpdate is used to modify an existing prefix. Only a change in tags
+// will enable an update. Other input changes, e.g., prefix length or pool, require any existing prefix
+// to be deleted and then recreated.
 // https://www.terraform.io/docs/extend/writing-custom-providers.html#error-handling-amp-partial-state
 func resourceNetboxPoolPrefixesUpdate(d *schema.ResourceData, meta interface{}) error {
 
@@ -291,17 +326,14 @@ func resourceNetboxPoolPrefixesUpdate(d *schema.ResourceData, meta interface{}) 
 
 		tagSlice := tagMapToSlice(tags)
 		if len(tagSlice) != 0 {
-			if d.Id() == "" {
-				return errors.New("Id must be provided")
+			id, err := extractInputId(d)
+			if err != nil {
+				return err
 			}
 			if d.Get("prefix").(string) == "" {
 				return errors.New("Prefix must be provided")
 			}
 			prefixString := d.Get("prefix").(string)
-			id, err := strconv.ParseInt(d.Id(), 10, 64)
-			if err != nil {
-				return errors.New("Could not convert ID to int")
-			}
 			client := meta.(*ProviderNetboxClient).client
 			// Set the new tags in the data to send with the update
 			data := models.WritablePrefix{ Prefix: &prefixString, Tags: tagSlice }
@@ -316,29 +348,26 @@ func resourceNetboxPoolPrefixesUpdate(d *schema.ResourceData, meta interface{}) 
 	return resourceNetboxPoolPrefixesRead(d, meta)
 }
 
+// resourceNetboxPoolPrefixesDelete will remove an existing prefix.
 func resourceNetboxPoolPrefixesDelete(d *schema.ResourceData, meta interface{}) error {
 	log.Printf("[DEBUG] resourceNetboxPoolPrefixesDelete ............ ")
 	log.Printf("[DEBUG] d -> [%v]\n", d)
 
-	if d.Id() != "" {
-		id, err := strconv.ParseInt(d.Id(), 10, 64)
-		if err != nil {
-			return errors.New("Could not convert ID to int")
-		}
-		var parm = ipam.NewIPAMPrefixesDeleteParams().WithID(id)
-		log.Printf("[DEBUG] Deleting prefix with ID %d\n", id)
+	id, err := extractInputId(d)
+	if err != nil {
+		return err
+	}
+	var parm = ipam.NewIPAMPrefixesDeleteParams().WithID(id)
+	log.Printf("[DEBUG] Deleting prefix with ID %d\n", id)
 
-		client := meta.(*ProviderNetboxClient).client
-		_, err = client.IPAM.IPAMPrefixesDelete(parm, nil)
-		log.Println("[DEBUG] Executing Delete.")
-		if err == nil {
-			log.Printf("[DEBUG] Prefix with ID %d deleted\n", id)
-		} else {
-			log.Printf("error calling IPAMPrefixesDelete: %v\n", err)
-			return err
-		}
+	client := meta.(*ProviderNetboxClient).client
+	_, err = client.IPAM.IPAMPrefixesDelete(parm, nil)
+	log.Println("[DEBUG] Executing Delete.")
+	if err == nil {
+		log.Printf("[DEBUG] Prefix with ID %d deleted\n", id)
 	} else {
-		return errors.New("Id must be provided")
+		log.Printf("error calling IPAMPrefixesDelete: %v\n", err)
+		return err
 	}
 	return nil
 }

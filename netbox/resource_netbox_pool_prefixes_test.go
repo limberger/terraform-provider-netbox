@@ -12,6 +12,8 @@ import (
 	"github.com/netbox-community/go-netbox/netbox/models"
 )
 
+const testPrefixName = "netbox_pool_prefixes.test_prefix"
+
 const testAccResourceNetboxPoolPrefixesConfig = `
 resource "netbox_pool_prefixes" "test_prefix" {
   environment   = "test"
@@ -88,7 +90,6 @@ func testAccPrefixDestroy(s *terraform.State) error {
 	// retrieve the client information
 	client := testAccProvider.Meta().(*ProviderNetboxClient).client
 
-
 	for _, rs := range s.RootModule().Resources {
 		if rs.Type != "netbox_pool_prefixes" {
 			continue
@@ -105,7 +106,7 @@ func testAccPrefixDestroy(s *terraform.State) error {
 			}
 			return nil
 		}
-		// CMG: Need to discriminate between prefix not there and other errors (like connection).
+		// XXX: Need to discriminate between prefix not there and other errors (like connection).
 	}
 	return nil
 }
@@ -138,7 +139,7 @@ func testAccCheckPrefixExists(resourceName string, prefix *models.Prefix) resour
 			return fmt.Errorf("Empty payload for prefix with ID %s.", rs.Primary.ID)
 		}
 
-		// CMG: Can add additional checks later
+		// XXX: Can add additional checks later
 
         // store the resulting prefix
         *prefix = *result.Payload
@@ -151,7 +152,7 @@ func testAccCheckPrefixModified(orig *models.Prefix, new *models.Prefix) resourc
 		if orig.ID != new.ID {
 			return fmt.Errorf("Prefix ID unexpectedly changed from %d to %d.", orig.ID, new.ID)
 		}
-		// CMG: Can add additional checks later
+		// XXX: Can add additional checks later
         return nil
     }
 }
@@ -161,12 +162,12 @@ func testAccCheckPrefixRecreated(orig *models.Prefix, new *models.Prefix) resour
 		if orig.ID == new.ID {
 			return fmt.Errorf("Prefix ID did not change from %d to %d.", orig.ID, new.ID)
 		}
-		// CMG: Can add additional checks later
+		// XXX: Can add additional checks later
         return nil
     }
 }
 
-func TestAccResourceNetboxPoolPrefixes_allocate(t *testing.T) {
+func TestAccResourceNetboxPoolPrefixesAllocate(t *testing.T) {
 	var prefix1 models.Prefix
 	resource.Test(t, resource.TestCase {
 		PreCheck: func() { testAccPreCheck(t) },
@@ -176,7 +177,7 @@ func TestAccResourceNetboxPoolPrefixes_allocate(t *testing.T) {
 			{
                 Config: testAccResourceNetboxPoolPrefixesConfig,
                 Check: resource.ComposeTestCheckFunc(
-                    testAccCheckPrefixExists("netbox_pool_prefixes.test_prefix", &prefix1),
+                    testAccCheckPrefixExists(testPrefixName, &prefix1),
                 ),
             },
 			{
@@ -189,7 +190,7 @@ func TestAccResourceNetboxPoolPrefixes_allocate(t *testing.T) {
 	})
 }
 
-func TestAccResourceNetboxPoolPrefixes_edit(t *testing.T) {
+func TestAccResourceNetboxPoolPrefixesEdit(t *testing.T) {
 	var prefix1, prefix2 models.Prefix
 	resource.Test(t, resource.TestCase {
 		PreCheck: func() { testAccPreCheck(t) },
@@ -199,34 +200,34 @@ func TestAccResourceNetboxPoolPrefixes_edit(t *testing.T) {
 			{
                 Config: testAccResourceNetboxPoolPrefixesConfig,
                 Check: resource.ComposeTestCheckFunc(
-                    testAccCheckPrefixExists("netbox_pool_prefixes.test_prefix", &prefix1),
+                    testAccCheckPrefixExists(testPrefixName, &prefix1),
                 ),
             },
             {
                 Config: testAccResourceNetboxPoolPrefixesEditTags,
                 Check: resource.ComposeTestCheckFunc(
-                    testAccCheckPrefixExists("netbox_pool_prefixes.test_prefix", &prefix2),
+                    testAccCheckPrefixExists(testPrefixName, &prefix2),
 					testAccCheckPrefixModified(&prefix1, &prefix2),
                 ),
             },
             {
                 Config: testAccResourceNetboxPoolPrefixesEditEnvironment,
                 Check: resource.ComposeTestCheckFunc(
-                    testAccCheckPrefixExists("netbox_pool_prefixes.test_prefix", &prefix1),
+                    testAccCheckPrefixExists(testPrefixName, &prefix1),
 					testAccCheckPrefixRecreated(&prefix2, &prefix1),
                 ),
             },
             {
                 Config: testAccResourceNetboxPoolPrefixesEditPool,
                 Check: resource.ComposeTestCheckFunc(
-                    testAccCheckPrefixExists("netbox_pool_prefixes.test_prefix", &prefix2),
+                    testAccCheckPrefixExists(testPrefixName, &prefix2),
 					testAccCheckPrefixRecreated(&prefix1, &prefix2),
                 ),
             },
             {
                 Config: testAccResourceNetboxPoolPrefixesEditLength,
                 Check: resource.ComposeTestCheckFunc(
-                    testAccCheckPrefixExists("netbox_pool_prefixes.test_prefix", &prefix1),
+                    testAccCheckPrefixExists(testPrefixName, &prefix1),
 					testAccCheckPrefixRecreated(&prefix2, &prefix1),
                 ),
             },
@@ -246,7 +247,7 @@ resource "netbox_pool_prefixes" "test_prefix" {
 }
 `
 
-func TestAccResourceNetboxPoolPrefixes_environmentErrors(t *testing.T) {
+func TestAccResourceNetboxPoolPrefixesEnvironmentErrors(t *testing.T) {
 	environmentError, _ := regexp.Compile("environment")
 
 	resource.Test(t, resource.TestCase {
@@ -273,7 +274,7 @@ resource "netbox_pool_prefixes" "test_prefix" {
 }
 `
 
-func TestAccResourceNetboxPoolPrefixes_poolErrors(t *testing.T) {
+func TestAccResourceNetboxPoolPrefixesPoolErrors(t *testing.T) {
 	poolError, _ := regexp.Compile("pool")
 
 	resource.Test(t, resource.TestCase {
@@ -312,7 +313,7 @@ resource "netbox_pool_prefixes" "test_prefix" {
 }
 `
 
-func TestAccResourceNetboxPoolPrefixes_lengthErrors(t *testing.T) {
+func TestAccResourceNetboxPoolPrefixesLengthErrors(t *testing.T) {
 	lengthError, _ := regexp.Compile("length")
 
 	resource.Test(t, resource.TestCase {
@@ -353,7 +354,7 @@ resource "netbox_pool_prefixes" "test_prefix" {
 }
 `
 
-func TestAccResourceNetboxPoolPrefixes_tagErrors(t *testing.T) {
+func TestAccResourceNetboxPoolPrefixesTagErrors(t *testing.T) {
 	tagError, _ := regexp.Compile("tags")
 
 	resource.Test(t, resource.TestCase {
