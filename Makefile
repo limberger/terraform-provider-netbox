@@ -1,7 +1,11 @@
 test:
-	go test -v $(shell go list ./... | grep -v /vendor/) 
+	go test -v $(shell go list ./... | grep -v /vendor/)
 
 testacc:
+	@echo
+	@echo ============================================================
+	@echo For tests to work, your NetBox must be configured correctly.
+	@echo
 	TF_ACC=1 go test -v ./netbox -run="TestAcc"
 
 build: deps
