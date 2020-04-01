@@ -32,7 +32,7 @@ The options for the plugin are as follows:
  * `app_id` - The API application ID, configured in the NETBOX  panel. This
    application ID should have read/write access if you are planning to use the
    resources, but read-only access should be sufficient if you are only using
-   the data sources. Caan also be supplied by the `NETBOX_APP_ID` environment
+   the data sources. Can also be supplied by the `NETBOX_APP_ID` environment
    variable.
  * `endpoint` - The server, protocol and port to access the NETBOX API, such as
    `https://netbox.example.com/api`. Can also be supplied by the
