@@ -69,9 +69,12 @@ func resourcePoolPrefixesSchema() map[string]*schema.Schema {
 	}
 }
 
+var netboxMinValidPrefix = 18
+var netboxMaxValidPrefix = 28
+
 // isLengthValid checks that the requested prefix lengths falls in the specified bounds.
 func isLengthValid(length int) bool {
-	return length >= 18 && length <= 28
+	return length >= netboxMinValidPrefix && length <= netboxMaxValidPrefix
 }
 
 // isPoolValid checks that the requested prefix pool is one that we support.
@@ -93,7 +96,6 @@ func isPoolValid(pool string) bool {
 func tagMapToSlice(tags map[string]interface{}) []string {
 	var tagSlice []string
 
-	log.Printf("[DEBUG] Have input tags %v\n", tags)
 	// Add tags
 	for key, value := range tags {
 		tagSlice = append(tagSlice, fmt.Sprintf("%s=%s", key, value))
