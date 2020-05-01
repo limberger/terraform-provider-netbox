@@ -11,12 +11,13 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"regexp"
 	"strconv"
 	"strings"
 
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
-	"github.com/netbox-community/go-netbox/netbox/client/ipam"
-	"github.com/netbox-community/go-netbox/netbox/models"
+	"github.com/cmgreivel/go-netbox/netbox/client/ipam"
+	"github.com/cmgreivel/go-netbox/netbox/models"
 )
 
 func resourceNetboxPoolPrefixes() *schema.Resource {
@@ -31,50 +32,72 @@ func resourceNetboxPoolPrefixes() *schema.Resource {
 
 func resourcePoolPrefixesSchema() map[string]*schema.Schema {
 	return map[string]*schema.Schema{
-		"pool": &schema.Schema{
-			Type:     schema.TypeString,
-			Description: "CIDR block of the pool from which the prefix will be allocated",
-			Required: true,
-			ForceNew: true,
+		"resource_type": &schema.Schema{
+			Type:        schema.TypeString,
+			Description: "Type of resource for which a prefix is being allocated, determines supernet",
+			Required:    true,
+			ForceNew:    true,
 		},
 		"prefix_id": &schema.Schema{
-			Type:     schema.TypeInt,
-			Description: "ID of the prefix allocated with the resource",
-			Optional: true,
-			Computed: true,
+			Type:        schema.TypeInt,
+			Description: "ID of the prefix allocated with the resource (output from NetBox)",
+			Optional:    true,
+			Computed:    true,
 		},
 		"prefix": &schema.Schema{
-			Type:     schema.TypeString,
+			Type:        schema.TypeString,
 			Description: "CIDR block of the prefix allocated with the resource",
-			Optional: true,
-			Computed: true,
+			Optional:    true,
+			Computed:    true,
 		},
 		"prefix_length": &schema.Schema{
-			Type:     schema.TypeInt,
+			Type:        schema.TypeInt,
 			Description: "Length of the prefix in bits",
-			Required: true,
-			ForceNew: true,
+			Required:    true,
+			ForceNew:    true,
 		},
 		"tags": &schema.Schema{
-			Type: schema.TypeMap,
+			Type:        schema.TypeMap,
 			Description: "Tags applied to the prefix",
-			Required: true,
+			Required:    true,
 		},
 		"environment": &schema.Schema{
-			Type: schema.TypeString,
+			Type:        schema.TypeString,
 			Description: "The environment the prefix belongs to",
-			Required: true,
-			ForceNew: true,
+			Required:    true,
+			ForceNew:    true,
 		},
 	}
 }
 
-var netboxMinValidPrefix = 18
-var netboxMaxValidPrefix = 28
+const netboxMinValidPrefix = 18
+const netboxMaxValidPrefix = 28
+
+var envVrfs = [4]string{"dev", "test", "stage", "prod"}
+
+// Resource types that rely on env to determine VRF
+var envResourceTypes = [3]string{"core", "depot", "edge"}
+
+// Usually gets sdVrf for VRF, except for pre-dev environment
+const sdResourceType = "servicedelivery"
+const sdVrf = "servicedelivery"
+
+var resourceSupernetMap = map[string][]string{
+	"core":            {"100.64.0.0/10"},
+	"depot":           {"10.224.0.0/16", "10.225.0.0/16"},
+	"edge":            {"10.226.0.0/16", "10.227.0.0/16"},
+	"servicedelivery": {"10.228.0.0/16"},
+	"vpn":             {"172.16.0.0/12"},
+}
 
 // isLengthValid checks that the requested prefix lengths falls in the specified bounds.
 func isLengthValid(length int) bool {
 	return length >= netboxMinValidPrefix && length <= netboxMaxValidPrefix
+}
+
+func resourceTypeToSupernets(resourceType string) [](string) {
+	lcType := strings.ToLower(resourceType)
+	return resourceSupernetMap[lcType]
 }
 
 // isPoolValid checks that the requested prefix pool is one that we support.
@@ -118,6 +141,44 @@ func tagSliceToMap(tagSlice []string) map[string]string {
 	return tagMap
 }
 
+// envToVrf converts the environment passed in to the VRF that manages it in NetBox.
+// If it doesn't match any of our recognized environment patterns, default
+// to the pre-dev (super temp) environment.
+func envToVrf(env string) string {
+	// If the passed-in env exactly matches a vrf, use that.
+	lowerEnv := strings.ToLower(env)
+	for _, vrf := range envVrfs {
+		if lowerEnv == vrf {
+			return vrf
+		}
+	}
+	// Some special checks to allow flexibility in environment spec.
+	prodRe := regexp.MustCompile(`^prod\d`)
+	matchedProd := prodRe.MatchString(lowerEnv)
+	if matchedProd || lowerEnv == "production" {
+		// "production," "prod0", "prod1", etc.
+		return "prod"
+	}
+	if lowerEnv == "staging" {
+		return "stage"
+	}
+	return "pre-dev"
+}
+
+// getVrf converts the environment passed in to the VRF
+// that manages it in NetBox. The typical mapping is based on the environment,
+// but service delivery resources use the same VRF for every environment.
+// If it doesn't match any of our recognized environment patters, default
+// to the pre-dev (super temp) environment.
+func getVrf(env string, resourceType string) string {
+	envVrf := envToVrf(env)
+	// If this isn't one of our standard environments, skip the servicedelivery check
+	if envVrf != "pre-dev" && strings.ToLower(resourceType) == sdResourceType {
+		return sdVrf
+	}
+	return envVrf
+}
+
 // isTagMapValid verifies that the required tags name and unique are included.
 // Other tags may be added as well.
 func isTagMapValid(tags map[string]interface{}) bool {
@@ -147,9 +208,9 @@ func verifyCreateInput(d *schema.ResourceData) error {
 		log.Println("[ERROR] environment not specified.")
 		return errors.New("environment not specified")
 	}
-	if d.Get("pool").(string) == "" {
-		log.Println("[ERROR] pool not specified.")
-		return errors.New("pool not specified")
+	if d.Get("resource_type").(string) == "" {
+		log.Println("[ERROR] resource_type not specified.")
+		return errors.New("resource_type not specified")
 	}
 	return nil
 }
@@ -179,11 +240,14 @@ func resourceNetboxPoolPrefixesCreate(d *schema.ResourceData, meta interface{}) 
 		return errors.New("prefix_length must be between 18 & 28, inclusive")
 	}
 	environment := d.Get("environment").(string)
-	pool := d.Get("pool").(string)
+	resourceType := d.Get("resource_type").(string)
 
-	if !isPoolValid(pool) {
-		log.Println("[ERROR] invalid pool specified.")
-		return errors.New("invalid pool specified")
+	// We rely on getting the supernets to determine resourceType validity.
+	pools := resourceTypeToSupernets(resourceType)
+	if len(pools) == 0 {
+		e := fmt.Sprintf("[ERROR] no pools found for resource %s.", resourceType)
+		log.Printf(e)
+		return errors.New(e)
 	}
 
 	if d.Get("tags").(map[string]interface{}) == nil {
@@ -199,17 +263,22 @@ func resourceNetboxPoolPrefixesCreate(d *schema.ResourceData, meta interface{}) 
 
 	tagSlice := tagMapToSlice(tags)
 
+	vrf := getVrf(environment, resourceType)
 	// Find the ID of the VRF. Having trouble just using the vrf name for some reason.
 	// XXX: ^^^
-	environmentParm := ipam.NewIPAMVrfsListParams().WithName(&environment)
-	environmentResult, err := client.IPAM.IPAMVrfsList(environmentParm, nil)
+	vrfParm := ipam.NewIPAMVrfsListParams().WithName(&vrf)
+	vrfResult, err := client.IPAM.IPAMVrfsList(vrfParm, nil)
 	if err != nil {
 		return err
 	}
-	if *environmentResult.Payload.Count != 1 {
-		return errors.New(fmt.Sprintf("Found %d vrfs for environment %s\n", *environmentResult.Payload.Count, environment))
+	if *vrfResult.Payload.Count != 1 {
+		return errors.New(fmt.Sprintf("Found %d vrfs for environment %s (vrf %s)\n",
+			*vrfResult.Payload.Count, environment, vrf))
 	}
-	environmentId := strconv.FormatInt(environmentResult.Payload.Results[0].ID, 10)
+	vrfId := strconv.FormatInt(vrfResult.Payload.Results[0].ID, 10)
+
+
+	// CMG HERE: Loop over pools
 
 	// We need to find the poolId
 	ispool := "true"
@@ -223,6 +292,7 @@ func resourceNetboxPoolPrefixesCreate(d *schema.ResourceData, meta interface{}) 
 	}
 	poolId := int(found.Payload.Results[0].ID)
 
+	// XXX: Should consider fixing this in https://github.com/cmgreivel/go-netbox.
 	// We cannot use go-netbox (https://github.com/netbox-community/go-netbox) to allocate
 	// the prefix, because go-netbox is generated from the Netbox OpenApi documentation.
 	// The NetBox OpenApi documentation is incorrect for the Available Prefixes APIs
@@ -235,7 +305,7 @@ func resourceNetboxPoolPrefixesCreate(d *schema.ResourceData, meta interface{}) 
 	log.Printf("[DEBUG] Configuration [%v]\n", config)
 	url := "http://" + config.Endpoint + "/api/ipam/prefixes/" + strconv.Itoa(poolId) + "/available-prefixes/"
 
-	jsonData := map[string] interface{}{"prefix_length": prefixLength}
+	jsonData := map[string]interface{}{"prefix_length": prefixLength}
 	if len(tagSlice) != 0 {
 		jsonData["tags"] = tagSlice
 	}
@@ -249,7 +319,7 @@ func resourceNetboxPoolPrefixesCreate(d *schema.ResourceData, meta interface{}) 
 		return err
 	}
 	req.Header.Set("Accept", "application/json")
-	req.Header.Set("authorization", "Token " + config.AppID)
+	req.Header.Set("authorization", "Token "+config.AppID)
 	req.Header.Set("cache-control", "no-cache")
 	req.Header.Set("content-type", "application/json")
 
@@ -338,7 +408,7 @@ func resourceNetboxPoolPrefixesUpdate(d *schema.ResourceData, meta interface{}) 
 			prefixString := d.Get("prefix").(string)
 			client := meta.(*ProviderNetboxClient).client
 			// Set the new tags in the data to send with the update
-			data := models.WritablePrefix{ Prefix: &prefixString, Tags: tagSlice }
+			data := models.WritablePrefix{Prefix: &prefixString, Tags: tagSlice}
 			updateParams := ipam.NewIPAMPrefixesUpdateParams().WithID(id).WithData(&data)
 			_, err = client.IPAM.IPAMPrefixesUpdate(updateParams, nil)
 			if err != nil {

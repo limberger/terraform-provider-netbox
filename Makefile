@@ -1,8 +1,5 @@
 all: test provider
 
-build/:
-	mkdir -p $@
-
 test:
 	go test -v ./netbox/...
 
@@ -26,3 +23,6 @@ provider:
 
 clean:
 	rm -rf build/
+
+setup:
+	cd utils; go build setup.go

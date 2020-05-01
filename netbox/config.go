@@ -4,10 +4,9 @@ import (
 	"fmt"
 	"log"
 
-	// api "github.com/netbox-community/go-netbox/netbox"
 	"github.com/go-openapi/strfmt"
 	runtimeclient "github.com/go-openapi/runtime/client"
-	"github.com/netbox-community/go-netbox/netbox/client"
+	"github.com/cmgreivel/go-netbox/netbox/client"
 )
 
 // Config provides the configuration for the NETBOX providerr.
@@ -70,7 +69,7 @@ func (c *Config) Client() (interface{}, error) {
 // ValidateConnection ensures that we can connect to Netbox early, so that we
 // do not fail in the middle of a TF run if it can be prevented.
 func (c *Config) ValidateConnection(sc *client.NetBox) error {
-	log.Printf("[DEBUG] config.go ValidateConnection() with call to list DCIM Racks ")
+	log.Printf("[DEBUG] ValidateConnection() with call to list DCIM Racks ")
 	rs, err := sc.Dcim.DcimRacksList(nil, nil)
 	log.Println(rs)
 	return err

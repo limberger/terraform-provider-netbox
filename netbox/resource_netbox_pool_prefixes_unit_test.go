@@ -7,6 +7,10 @@ import (
 	"testing"
 )
 
+// Test the envs that match the vrfs exactly
+var goodEnvs = [4](string){"dev", "stage", "test", "prod"}
+var goodResources = [5](string){"core", "depot", "edge", "servicedelivery", "vpn"}
+
 func TestIsLengthValid(t *testing.T) {
 	for i := 0; i < netboxMinValidPrefix; i++ {
 		if isLengthValid(i) {
@@ -125,5 +129,89 @@ func TestIsTagMapValid(t *testing.T) {
 	}
 	if isTagMapValid(mapMissingBoth) {
 		t.Errorf("mapMissingBoth reported as good")
+	}
+}
+
+func TestEnvToVrf(t *testing.T) {
+	for _, env := range goodEnvs {
+		vrf := envToVrf(env)
+		if vrf != env {
+			t.Errorf("envToVrf returned %s expected %s", vrf, env)
+		}
+	}
+
+	// Test with mixed case
+	mixedEnvs := [4](string){"Dev", "sTage", "Test", "prOd"}
+	for i, env := range mixedEnvs {
+		vrf := envToVrf(env)
+		if vrf != goodEnvs[i] {
+			t.Errorf("envToVrf returned %s expected %s", vrf, goodEnvs[i])
+		}
+	}
+
+	// Test for predev
+	vrf := envToVrf("non-standard")
+	if vrf != "pre-dev" {
+		t.Errorf("envToVrf returned %s expected pre-dev", vrf)
+	}
+
+}
+
+func TestGetVrf(t *testing.T) {
+	// This really just tests exceptions for servicedelivery.
+	// All other relevant tests are in TestEnvToVrf.
+	// Test for servicedelivery
+	for _, env := range goodEnvs {
+		vrf := getVrf(env, "servicedelivery")
+		if vrf != "servicedelivery" {
+			t.Errorf("getVrf returned %s expected servicedelivery", vrf)
+		}
+	}
+
+	// A non-standard environment--even for servicedelivery, should use pre-dev
+	vrf := getVrf("non-standard", "servicedelivery")
+	if vrf != "pre-dev" {
+		t.Errorf("getVrf returned %s expected pre-dev", vrf)
+	}
+}
+
+func verifySupernets(rType string, found [](string), expected [](string), t *testing.T) {
+	if len(found) != len(expected) {
+		t.Errorf("Found %d supernets for %s. Expected %d", len(found), rType, len(expected))
+	}
+	for _, f := range found {
+		matched := false
+		for _, e := range expected {
+			if e == f {
+				matched = true
+				break
+			}
+		}
+		if ! matched {
+			t.Errorf("Supernet %s for '%s' not in expected set %v", f, rType, expected)
+		}
+	}
+}
+
+func TestResourceTypeToSupernets(t *testing.T) {
+
+	found := resourceTypeToSupernets("core")
+	verifySupernets("core", found, [](string){"100.64.0.0/10"}, t)
+
+	found = resourceTypeToSupernets("depot")
+	verifySupernets("depot", found, [](string){"10.224.0.0/16", "10.225.0.0/16"}, t)
+
+	found = resourceTypeToSupernets("edge")
+	verifySupernets("edge", found, [](string){"10.226.0.0/16", "10.227.0.0/16"}, t)
+
+	found = resourceTypeToSupernets("servicedelivery")
+	verifySupernets("servicedelivery", found, [](string){"10.228.0.0/16"}, t)
+
+	found = resourceTypeToSupernets("vpn")
+	verifySupernets("vpn", found, [](string){"172.16.0.0/12"}, t)
+
+	found = resourceTypeToSupernets("bad")
+	if len(found) != 0 {
+		t.Errorf("Supernet %v for 'bad' was not expected", found)
 	}
 }

@@ -8,8 +8,8 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-sdk/terraform"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/resource"
-	"github.com/netbox-community/go-netbox/netbox/client/ipam"
-	"github.com/netbox-community/go-netbox/netbox/models"
+	"github.com/cmgreivel/go-netbox/netbox/client/ipam"
+	"github.com/cmgreivel/go-netbox/netbox/models"
 )
 
 const testPrefixName = "netbox_pool_prefixes.test_prefix"
