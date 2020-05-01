@@ -20,6 +20,11 @@ import (
 	"github.com/cmgreivel/go-netbox/netbox/models"
 )
 
+type basicPrefix struct {
+	Prefix string
+	Id float64
+}
+
 func resourceNetboxPoolPrefixes() *schema.Resource {
 	return &schema.Resource{
 		Read:   resourceNetboxPoolPrefixesRead,
@@ -224,6 +229,86 @@ func extractInputId(d *schema.ResourceData) (int64, error) {
 	return strconv.ParseInt(d.Id(), 10, 64)
 }
 
+func allocatePrefix(provider *ProviderNetboxClient, pool *string, vrfId *string,
+	prefixLength int, tags []string) (basicPrefix, error) {
+
+	var emptyPrefix basicPrefix
+
+	ispool := "true"
+	listParm := ipam.NewIpamPrefixesListParams().WithPrefix(pool).WithIsPool(&ispool).WithVrfID(vrfId)
+	found, err := provider.client.Ipam.IpamPrefixesList(listParm, nil)
+	if err != nil {
+		return emptyPrefix, err
+	}
+	if *found.Payload.Count != 1 {
+		return emptyPrefix, errors.New(fmt.Sprintf("Found %d pools for prefix %s\n", *found.Payload.Count, pool))
+	}
+	poolId := int(found.Payload.Results[0].ID)
+
+	// XXX: Should consider fixing this in https://github.com/cmgreivel/go-netbox.
+	// We cannot use go-netbox (https://github.com/netbox-community/go-netbox) to allocate
+	// the prefix, because go-netbox is generated from the Netbox OpenApi documentation.
+	// The NetBox OpenApi documentation is incorrect for the Available Prefixes APIs
+	// (https://github.com/netbox-community/netbox/issues/2769), and
+	// go-netbox is generated from the OpenApi decorators. Someone started a patch
+	// at https://github.com/hellerve/netbox/commit/97e35a3194b21b71d461862a8a9bc0e174c387f0,
+	// but it has not been completed.
+
+	config := provider.configuration
+	log.Printf("[DEBUG] Configuration [%v]\n", config)
+	url := "http://" + config.Endpoint + "/api/ipam/prefixes/" + strconv.Itoa(poolId) + "/available-prefixes/"
+
+	jsonData := map[string]interface{}{"prefix_length": prefixLength}
+	if len(tags) != 0 {
+		jsonData["tags"] = tags
+	}
+	jsonValue, _ := json.Marshal(jsonData)
+	log.Printf("[DEBUG] JSON: [%v]\n", string(jsonValue))
+
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonValue))
+	if err != nil {
+		log.Printf("[ERROR] Error occurred creating POST request to url [%v]\n", url)
+		log.Printf("[ERROR] Error: %v\n", err)
+		return emptyPrefix, err
+	}
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("authorization", "Token "+config.AppID)
+	req.Header.Set("cache-control", "no-cache")
+	req.Header.Set("content-type", "application/json")
+
+	log.Println("[DEBUG] http.Client submitting request")
+	httpClient := &http.Client{}
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		log.Println("[DEBUG] Error occurred after post")
+		log.Printf("[ERROR] Error retorned from http. %v \n", err)
+		return emptyPrefix, err
+	}
+	log.Printf("[DEBUG] Http Code Response: %v\n", resp.StatusCode)
+
+	// CMG: What will be the result of a full prefix here.
+	body, _ := ioutil.ReadAll(resp.Body)
+	log.Println("[DEBUG] Body Read")
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 201 {
+		return emptyPrefix, errors.New("Return http code: " + strconv.Itoa(resp.StatusCode))
+	}
+
+	var respData map[string]interface{}
+	log.Print("[DEBUG] Will Unmarshal the body")
+	jsonErr := json.Unmarshal(body, &respData)
+	if jsonErr != nil {
+		log.Print(jsonErr)
+		return emptyPrefix, errors.New("json.Unmarshal failed")
+	}
+	log.Println("[DEBUG] Unmarshal Ok")
+	log.Printf("[DEBUG] Body: %v", string(body))
+
+	// Numbers in json.Unmarshal() are always treated as float64.
+	return basicPrefix{respData["prefix"].(string), respData["id"].(float64)}, nil
+}
+
 // resourceNetboxPoolPrefixesCreate is invoked when a new prefix will be allocated.
 func resourceNetboxPoolPrefixesCreate(d *schema.ResourceData, meta interface{}) error {
 
@@ -266,8 +351,8 @@ func resourceNetboxPoolPrefixesCreate(d *schema.ResourceData, meta interface{}) 
 	vrf := getVrf(environment, resourceType)
 	// Find the ID of the VRF. Having trouble just using the vrf name for some reason.
 	// XXX: ^^^
-	vrfParm := ipam.NewIPAMVrfsListParams().WithName(&vrf)
-	vrfResult, err := client.IPAM.IPAMVrfsList(vrfParm, nil)
+	vrfParm := ipam.NewIpamVrfsListParams().WithName(&vrf)
+	vrfResult, err := client.Ipam.IpamVrfsList(vrfParm, nil)
 	if err != nil {
 		return err
 	}
@@ -277,84 +362,25 @@ func resourceNetboxPoolPrefixesCreate(d *schema.ResourceData, meta interface{}) 
 	}
 	vrfId := strconv.FormatInt(vrfResult.Payload.Results[0].ID, 10)
 
-
-	// CMG HERE: Loop over pools
-
-	// We need to find the poolId
-	ispool := "true"
-	listParm := ipam.NewIPAMPrefixesListParams().WithPrefix(&pool).WithIsPool(&ispool).WithVrfID(&environmentId)
-	found, err := client.IPAM.IPAMPrefixesList(listParm, nil)
-	if err != nil {
-		return err
+	var prefixInfo basicPrefix
+	for _, pool := range pools {
+		prefixInfo, err = allocatePrefix(meta.(*ProviderNetboxClient), &pool, &vrfId, prefixLength, tagSlice)
+		if err != nil {
+			return err
+		}
+		if len(prefixInfo.Prefix) > 0 {
+			break
+		}
+		log.Printf("Did not allocate prefix for %s in %s from pool %s",
+			resourceType, environment, pool)
 	}
-	if *found.Payload.Count != 1 {
-		return errors.New(fmt.Sprintf("Found %d pools for prefix %s\n", *found.Payload.Count, pool))
+	if len(prefixInfo.Prefix) == 0 {
+		return errors.New(fmt.Sprintf("Did not allocate prefix for %s in %s", resourceType, environment))
 	}
-	poolId := int(found.Payload.Results[0].ID)
-
-	// XXX: Should consider fixing this in https://github.com/cmgreivel/go-netbox.
-	// We cannot use go-netbox (https://github.com/netbox-community/go-netbox) to allocate
-	// the prefix, because go-netbox is generated from the Netbox OpenApi documentation.
-	// The NetBox OpenApi documentation is incorrect for the Available Prefixes APIs
-	// (https://github.com/netbox-community/netbox/issues/2769), and
-	// go-netbox is generated from the OpenApi decorators. Someone started a patch
-	// at https://github.com/hellerve/netbox/commit/97e35a3194b21b71d461862a8a9bc0e174c387f0,
-	// but it has not been completed.
-
-	config := meta.(*ProviderNetboxClient).configuration
-	log.Printf("[DEBUG] Configuration [%v]\n", config)
-	url := "http://" + config.Endpoint + "/api/ipam/prefixes/" + strconv.Itoa(poolId) + "/available-prefixes/"
-
-	jsonData := map[string]interface{}{"prefix_length": prefixLength}
-	if len(tagSlice) != 0 {
-		jsonData["tags"] = tagSlice
-	}
-	jsonValue, _ := json.Marshal(jsonData)
-	log.Printf("[DEBUG] JSON: [%v]\n", string(jsonValue))
-
-	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonValue))
-	if err != nil {
-		log.Printf("[ERROR] Error occurred creating POST request to url [%v]\n", url)
-		log.Printf("[ERROR] Error: %v\n", err)
-		return err
-	}
-	req.Header.Set("Accept", "application/json")
-	req.Header.Set("authorization", "Token "+config.AppID)
-	req.Header.Set("cache-control", "no-cache")
-	req.Header.Set("content-type", "application/json")
-
-	log.Println("[DEBUG] http.Client submitting request")
-	httpClient := &http.Client{}
-	resp, err := httpClient.Do(req)
-	if err != nil {
-		log.Println("[DEBUG] Error occurred after post")
-		log.Printf("[ERROR] Error retorned from http. %v \n", err)
-		return err
-	}
-	log.Printf("[DEBUG] Http Code Response: %v\n", resp.StatusCode)
-	body, _ := ioutil.ReadAll(resp.Body)
-	log.Println("[DEBUG] Body Read")
-	defer resp.Body.Close()
-
-	if resp.StatusCode != 201 {
-		return errors.New("Return http code: " + strconv.Itoa(resp.StatusCode))
-	}
-
-	var respData map[string]interface{}
-	log.Print("[DEBUG] Will Unmarshal the body")
-	jsonErr := json.Unmarshal(body, &respData)
-	if jsonErr != nil {
-		log.Fatal(jsonErr)
-		return errors.New("json.Unmarshal failed")
-	}
-	log.Println("[DEBUG] Unmarshal Ok")
-	log.Printf("[DEBUG] Body: %v", string(body))
-
-	// Numbers in json.Unmarshal() are always treated as float64.
-	d.SetId(strconv.FormatFloat(respData["id"].(float64), 'f', -1, 64))
-	d.Set("prefix", respData["prefix"].(string))
-	d.Set("prefix_id", int(respData["id"].(float64)))
-
+	// Set the appropriate values in the Terraform-managed structure
+	d.SetId(strconv.FormatFloat(prefixInfo.Id, 'f', -1, 64))
+	d.Set("prefix", prefixInfo.Prefix)
+	d.Set("prefix_id", prefixInfo.Id)
 	return nil
 }
 
@@ -367,8 +393,8 @@ func resourceNetboxPoolPrefixesRead(d *schema.ResourceData, meta interface{}) er
 	if err != nil {
 		return err
 	}
-	parm := ipam.NewIPAMPrefixesReadParams().WithID(id)
-	result, err := client.IPAM.IPAMPrefixesRead(parm, nil)
+	parm := ipam.NewIpamPrefixesReadParams().WithID(id)
+	result, err := client.Ipam.IpamPrefixesRead(parm, nil)
 	if err != nil {
 		d.SetId("")
 	} else {
@@ -409,8 +435,8 @@ func resourceNetboxPoolPrefixesUpdate(d *schema.ResourceData, meta interface{}) 
 			client := meta.(*ProviderNetboxClient).client
 			// Set the new tags in the data to send with the update
 			data := models.WritablePrefix{Prefix: &prefixString, Tags: tagSlice}
-			updateParams := ipam.NewIPAMPrefixesUpdateParams().WithID(id).WithData(&data)
-			_, err = client.IPAM.IPAMPrefixesUpdate(updateParams, nil)
+			updateParams := ipam.NewIpamPrefixesUpdateParams().WithID(id).WithData(&data)
+			_, err = client.Ipam.IpamPrefixesUpdate(updateParams, nil)
 			if err != nil {
 				log.Printf("[ERROR] failed to update prefix tags\n")
 				return err
@@ -429,16 +455,16 @@ func resourceNetboxPoolPrefixesDelete(d *schema.ResourceData, meta interface{}) 
 	if err != nil {
 		return err
 	}
-	var parm = ipam.NewIPAMPrefixesDeleteParams().WithID(id)
+	var parm = ipam.NewIpamPrefixesDeleteParams().WithID(id)
 	log.Printf("[DEBUG] Deleting prefix with ID %d\n", id)
 
 	client := meta.(*ProviderNetboxClient).client
-	_, err = client.IPAM.IPAMPrefixesDelete(parm, nil)
+	_, err = client.Ipam.IpamPrefixesDelete(parm, nil)
 	log.Println("[DEBUG] Executing Delete.")
 	if err == nil {
 		log.Printf("[DEBUG] Prefix with ID %d deleted\n", id)
 	} else {
-		log.Printf("error calling IPAMPrefixesDelete: %v\n", err)
+		log.Printf("error calling IpamPrefixesDelete: %v\n", err)
 		return err
 	}
 	return nil
