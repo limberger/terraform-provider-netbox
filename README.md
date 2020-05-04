@@ -1,3 +1,7 @@
+## This project is stopped!
+## If you want to work on it, please tell me!
+## Thanks
+
 # Terraform Provider Plugin for Netbox
 
 This repository holds a external plugin for a [Terraform][1] provider to manage
