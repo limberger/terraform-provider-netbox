@@ -1,9 +1,7 @@
 package netbox
 
 import (
-	// "fmt"
-	// "regexp"
-	// "strconv"
+	"fmt"
 	"testing"
 )
 
@@ -25,22 +23,6 @@ func TestIsLengthValid(t *testing.T) {
 	for i := netboxMaxValidPrefix + 1; i < 35; i++ {
 		if isLengthValid(i) {
 			t.Errorf("%d is not a valid length", i)
-		}
-	}
-}
-
-func TestIsPoolValid(t *testing.T) {
-	good_prefixes := []string{"100.64.0.0/10", "172.16.0.0/12", "10.0.0.0/8"}
-	for _, prefix := range good_prefixes {
-		if ! isPoolValid(prefix) {
-			t.Errorf("%s is a valid pool", prefix)
-		}
-	}
-	// Check some bad ones
-	bad_prefixes := []string{"Bad", "172.16.0.0/24", ""}
-	for _, prefix := range bad_prefixes {
-		if isPoolValid(prefix) {
-			t.Errorf("%s is not a valid pool", prefix)
 		}
 	}
 }
@@ -213,5 +195,32 @@ func TestResourceTypeToSupernets(t *testing.T) {
 	found = resourceTypeToSupernets("bad")
 	if len(found) != 0 {
 		t.Errorf("Supernet %v for 'bad' was not expected", found)
+	}
+}
+
+func TestAreResourceAndEnvValid(t *testing.T) {
+	allResources := []string{"servicedelivery", "core", "edge", "depot", "vpn"}
+	allGoodEnvs := []string{"pre-dev", "dev", "stage", "test", "prod"}
+
+	for _, r := range allResources {
+		for _, e := range allGoodEnvs {
+			if ! areResourceAndEnvValid(r, e) {
+				t.Errorf(fmt.Sprintf("%s resource should be OK with %s environment", r, e))
+			}
+		}
+	}
+	for _, r := range allResources {
+		// No other resource type should work with servicedelivery env
+		valid := areResourceAndEnvValid(r, "servicedelivery")
+
+		if r == "servicedelivery" {
+			if ! valid {
+				t.Errorf("servicedelivery resource should be OK with servicedelivery environment")
+			}
+		} else {
+			if valid {
+				t.Errorf(fmt.Sprintf("%s resource should not be OK with servicedelivery environment", r))
+			}
+		}
 	}
 }

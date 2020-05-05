@@ -20,6 +20,24 @@ import (
 	"github.com/cmgreivel/go-netbox/netbox/models"
 )
 
+// ********** NOTE **********
+// There is a very special case for servicedelivery. Generally a non-standard
+// environment is translated to the pre-dev VRF, but servicedelivery
+// is its own VRF, regardless of the specified environment. This can be problematic
+// if we want a pre-dev allocation for servicedelivery concerns. We don't
+// want to consume 'real' servicedelivery IP ranges.
+//
+// If resource_type is servicedelivery:
+//   - If environment is dev, test, stage, production, then VRF is servicedelivery
+//   - If environment is servicedelivery, then VRF is servicedelivery
+//   - If environment is anything else, then VRF is pre-dev
+//
+// If resource_type is any valid type other than servicedelivery:
+//   - If environment is dev, test, stage, production, then VRF is the specified environment
+//   - If environment is servicedelivery, then an error is returned. This is an invalid combination.
+//   - If environment is anything else, then VRF is pre-dev
+
+
 type basicPrefix struct {
 	Prefix string
 	Id float64
@@ -87,7 +105,8 @@ var envResourceTypes = [3]string{"core", "depot", "edge"}
 const sdResourceType = "servicedelivery"
 const sdVrf = "servicedelivery"
 
-var resourceSupernetMap = map[string][]string{
+// Map of resource types to supernet ranges.
+var resourceSupernetMap = map[string][]string {
 	"core":            {"100.64.0.0/10"},
 	"depot":           {"10.224.0.0/16", "10.225.0.0/16"},
 	"edge":            {"10.226.0.0/16", "10.227.0.0/16"},
@@ -100,22 +119,26 @@ func isLengthValid(length int) bool {
 	return length >= netboxMinValidPrefix && length <= netboxMaxValidPrefix
 }
 
+// Returns the correct slice of supernets for a given resource type.
+// Returns empty slice if an unexpected resource type is specified.
 func resourceTypeToSupernets(resourceType string) [](string) {
 	lcType := strings.ToLower(resourceType)
 	return resourceSupernetMap[lcType]
 }
 
-// isPoolValid checks that the requested prefix pool is one that we support.
-func isPoolValid(pool string) bool {
-	isValid := false
-	validPools := []string{"10.0.0.0/8", "172.16.0.0/12", "100.64.0.0/10"}
-	for _, p := range validPools {
-		if p == pool {
-			isValid = true
-			break
-		}
+// Verify that an environment of 'servicedelivery' is not specified
+// with a resourceType that is not 'servicedelivery' to avoid possible
+// confusion and bad allocation of prefixes.
+func areResourceAndEnvValid(resourceType string, environment string) bool {
+	if strings.ToLower(environment) != "servicedelivery" {
+		return true
 	}
-	return isValid
+	if strings.ToLower(resourceType) == "servicedelivery" {
+		// Both are servicedelivery, so no confusion here.
+		return true
+	}
+	// environment is servicedelivery, but resourceType is not.
+	return false
 }
 
 // tagMapToSlice converts the input tags, represented as a map, to a slice of strings,
@@ -145,6 +168,10 @@ func tagSliceToMap(tagSlice []string) map[string]string {
 	}
 	return tagMap
 }
+
+// CMG: Add sanity check on input environment and resource_type for servicedelivery
+// My test had servicedelivery for environment and core for resource_type, and it
+// caused oddities--allocated for pre-dev core!
 
 // envToVrf converts the environment passed in to the VRF that manages it in NetBox.
 // If it doesn't match any of our recognized environment patterns, default
@@ -229,6 +256,7 @@ func extractInputId(d *schema.ResourceData) (int64, error) {
 	return strconv.ParseInt(d.Id(), 10, 64)
 }
 
+// allocatePrefix does the actual call
 func allocatePrefix(provider *ProviderNetboxClient, pool *string, vrfId *string,
 	prefixLength int, tags []string) (basicPrefix, error) {
 
@@ -241,7 +269,7 @@ func allocatePrefix(provider *ProviderNetboxClient, pool *string, vrfId *string,
 		return emptyPrefix, err
 	}
 	if *found.Payload.Count != 1 {
-		return emptyPrefix, errors.New(fmt.Sprintf("Found %d pools for prefix %s\n", *found.Payload.Count, pool))
+		return emptyPrefix, errors.New(fmt.Sprintf("Found %d pools for prefix %s\n", *found.Payload.Count, *pool))
 	}
 	poolId := int(found.Payload.Results[0].ID)
 
@@ -322,16 +350,22 @@ func resourceNetboxPoolPrefixesCreate(d *schema.ResourceData, meta interface{}) 
 	prefixLength := d.Get("prefix_length").(int)
 	if !isLengthValid(prefixLength) {
 		log.Println("[ERROR] invalid prefix length specified.")
-		return errors.New("prefix_length must be between 18 & 28, inclusive")
+		return errors.New(fmt.Sprintf("prefix_length must be between %d & %d, inclusive",
+			netboxMinValidPrefix, netboxMaxValidPrefix))
 	}
 	environment := d.Get("environment").(string)
 	resourceType := d.Get("resource_type").(string)
 
+	if !areResourceAndEnvValid(resourceType, environment) {
+		e := fmt.Sprintf("resource %s cannot be used with environment %s", resourceType, environment)
+		log.Printf("[ERROR] %s", e)
+		return errors.New(e)
+	}
 	// We rely on getting the supernets to determine resourceType validity.
 	pools := resourceTypeToSupernets(resourceType)
 	if len(pools) == 0 {
-		e := fmt.Sprintf("[ERROR] no pools found for resource %s.", resourceType)
-		log.Printf(e)
+		e := fmt.Sprintf("no pools found for resource %s.", resourceType)
+		log.Printf("[ERROR] %s", e)
 		return errors.New(e)
 	}
 
@@ -399,9 +433,9 @@ func resourceNetboxPoolPrefixesRead(d *schema.ResourceData, meta interface{}) er
 		d.SetId("")
 	} else {
 		prefix := result.Payload
+		// We do not set the environment here and let TF report it
 		d.Set("prefix", prefix.Prefix)
 		d.Set("prefix_id", prefix.ID)
-		d.Set("environment", prefix.Vrf.Name)
 		d.Set("tags", tagSliceToMap(prefix.Tags))
 	}
 	return nil
@@ -438,7 +472,7 @@ func resourceNetboxPoolPrefixesUpdate(d *schema.ResourceData, meta interface{}) 
 			updateParams := ipam.NewIpamPrefixesUpdateParams().WithID(id).WithData(&data)
 			_, err = client.Ipam.IpamPrefixesUpdate(updateParams, nil)
 			if err != nil {
-				log.Printf("[ERROR] failed to update prefix tags\n")
+				log.Printf("[ERROR] failed to update prefix tags: %v\n", err)
 				return err
 			}
 		}
@@ -464,7 +498,7 @@ func resourceNetboxPoolPrefixesDelete(d *schema.ResourceData, meta interface{}) 
 	if err == nil {
 		log.Printf("[DEBUG] Prefix with ID %d deleted\n", id)
 	} else {
-		log.Printf("error calling IpamPrefixesDelete: %v\n", err)
+		log.Printf("[ERROR] error calling IpamPrefixesDelete: %v\n", err)
 		return err
 	}
 	return nil

@@ -3,6 +3,7 @@ module github.com/cmgreivel/terraform-provider-netbox
 go 1.13
 
 require (
+	github.com/apparentlymart/go-cidr v1.0.1
 	github.com/cmgreivel/go-netbox v0.0.0-20200430213441-e6c91424103a
 	github.com/go-openapi/errors v0.19.4 // indirect
 	github.com/go-openapi/runtime v0.19.15

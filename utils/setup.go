@@ -13,17 +13,6 @@ import (
 	"github.com/cmgreivel/go-netbox/netbox/models"
 )
 
-// VRFs: pre-dev, dev, prod, stage, test, servicedelivery
-// Pools for pre-dev, dev, prod, stage:
-//  10.224.0.0/16 and 10.225.0.0/16: depot
-//  10.226.0.0/16 and 10.227.0.0/16: edge
-//  100.64.0.0/10: core
-//  172.16.0.0/12: VPN
-
-// Pool for servicedelivery: 10.228.0.0/16
-
-// Pre-allocated prefix for VPN client addresses (from VPN supernet): 172.16.6.0/24
-
 // Users: (not sure I see APIs for this)
 // typhon-dev
 //
@@ -151,6 +140,19 @@ func addPrefixes(nb *client.NetBox) error {
 					vpnCreated.Payload.ID, *vpnCreated.Payload.Prefix)
 			}
 		}
+
+		if v == "pre-dev" {
+			// We add a servicedelivery pool to the pre-dev VRF to avoid
+			// exhausting the production servicedelivery prefixes
+			data.Prefix = &sdPool
+			addParm.SetData(&data)
+			created, err := nb.Ipam.IpamPrefixesCreate(addParm, nil)
+			if err != nil {
+				return err
+			}
+			log.Printf("[DEBUG] Created pre-dev servicedelivery prefix %d:%s",
+				created.Payload.ID, *created.Payload.Prefix)
+		}
 	}
 	// Add the servicedelivery prefix in its own VRF
 	var vrfIdPtr *int64 = nil
@@ -179,6 +181,22 @@ func addPrefixes(nb *client.NetBox) error {
 func addVrfs(nb *client.NetBox) error {
 	log.Println("[DEBUG] in addVrfs()")
 	to_add := []string{"pre-dev", "dev", "prod", "stage", "test", "servicedelivery"}
+
+
+	// Sanity check to make sure these don't exist already.
+	// Netbox does not prevent VRFs with duplicate names, and this
+	// will cause headaches for us.
+	foundVrfs, err := nb.Ipam.IpamVrfsList(nil, nil)
+	if err != nil {
+		return err
+	}
+	for _, f := range foundVrfs.Payload.Results {
+		for _, v := range to_add {
+			if v == *f.Name {
+				return errors.New(fmt.Sprintf("VRF %s already in NetBox. Exiting!", v))
+			}
+		}
+	}
 
 	addParm := ipam.NewIpamVrfsCreateParams()
 	// Initialize the common parameters for VRF creation
@@ -245,8 +263,7 @@ func parseArgs() setupArgs {
 	var args setupArgs
 
 	args.destroyAll = flag.Bool("destroyAll", false, "If set will destroy all VRFs and prefixes in the system")
-	flag.StringVar(&args.endpoint, "endpoint", "localhost:32777",
-		"The NetBox endpoint. Default is 'localhost:32777'")
+	flag.StringVar(&args.endpoint, "endpoint", "localhost:32777", "The NetBox endpoint.")
 
 	flag.Parse()
 	return args
