@@ -1,6 +1,6 @@
 ## This project is stopped!
-## If you want to work on it, please tell me!
-## Thanks
+## If you want to work on it, please help me to reactivate it!
+## Thanks!
 
 # Terraform Provider Plugin for Netbox
 
